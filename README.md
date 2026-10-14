@@ -1,0 +1,84 @@
+# 🐌 Immortal Snail Chess
+
+Standard chess plus two immortal snails. Every 3 full moves (6 plies) each snail moves one square
+toward the enemy king, crushing whatever is on that square. If a snail lands on a king, that king's
+side loses.
+
+Everything runs in the browser (static site, no server): the rules engine, a snail-aware search in
+a Web Worker, and Stockfish 18 (lite, single-threaded WASM, ~7 MB) in another worker.
+
+## Quick start
+
+```bash
+npm install          # also copies Stockfish into public/stockfish/
+npm run dev          # http://localhost:5173
+npm test             # engine + bot trap suites (pure TS search)
+STOCKFISH=1 npm test # also run the trap suites through Stockfish + snail rescoring
+npm run selfplay -- --games 20             # Medium vs Hard self-play report
+npm run build && npm run preview           # production build
+npx tsx scripts/smoke.ts                   # browser smoke test against preview (Chromium)
+```
+
+Deploy: `dist/` is a static site (Cloudflare Pages / Vercel). `public/_redirects` gives Pages its
+SPA fallback.
+
+## Rules as implemented
+
+| Rule | Behaviour |
+|---|---|
+| Start | White snail **a4** (hunts the Black king), Black snail **h5** (hunts the White king). |
+| Timing | A tick fires after plies 6, 12, 18… (after Black's 3rd, 6th… move). White's snail resolves first. |
+| Step | `(sign(dFile), sign(dRank))` toward the target king, i.e. one Chebyshev step (diagonal when both axes differ). |
+| Clash | If the other snail is on that square, the snail takes another neighbouring square that still strictly shortens its Chebyshev distance (nearest to the king first), or waits. |
+| Crush | Any piece on the landing square is removed, of either colour. A crushed king loses immediately (`snail_win_white` / `snail_win_black` name the winner). If White's snail crushes a king, Black's snail does not move that tick. |
+| Walls | Nothing may land on a snail. Sliders, pawn double pushes and castling can't pass through one; knights can jump over. Snails also block lines of attack, so they block checks and pins. |
+| Snail exposes a king | If a snail stepping away opens a line so that the side to move could capture the enemy king, the side to move wins (reported as `checkmate`). |
+| Draws | Stalemate, 50-move rule, insufficient material, threefold repetition (positions include snail squares and the tick phase). |
+
+## Architecture
+
+```
+src/engine/   pure rules, no DOM
+  types.ts           game state schema (spec §3, plus winner/history/repetition)
+  fen.ts             FEN parse/serialise, castling sanitising
+  snailEngine.ts     snail step, clash handling, tick + crush
+  boardValidator.ts  snail-aware move generation on a chess.js "shadow" position
+  game.ts            createGame / applyMove / status / snapshots ("<fen> [S:a4,h5] [P:6]")
+src/bot/
+  snailEval.ts       material + snail heuristics (α/β distance terms, path and imminent-crush
+                     penalties) and a snail-aware alpha-beta search over the real rules
+  uci.ts             UCI session, MultiPV parsing, `searchmoves`
+  hybrid.ts          move choice: snail tactics pass → Stockfish MultiPV → snail rescoring
+  botClient.ts       browser glue (Stockfish worker + search worker)
+src/workers/         search.worker.ts, stockfishUci.ts
+src/network/         GameTransport interface, room codes (PartyKit transport: TODO)
+src/ui/              React + react-chessboard
+scripts/             selfplay.ts, smoke.ts, nodeStockfish.ts, copy-stockfish.mjs
+```
+
+**Shadow positions.** chess.js knows nothing about snails, so moves are generated on a copy of the
+position with a virtual piece of the side to move on each snail square. chess.js then forbids
+landing on or sliding through snails, and the snails block enemy attacks on the king. Moves
+starting on those squares are dropped. The same shadow FEN goes to Stockfish.
+
+**Hybrid bot.**
+1. A shallow full-width snail-aware search looks for forced snail wins, which Stockfish can't see.
+2. Stockfish MultiPV runs with the root restricted (`searchmoves`) to snail-legal moves.
+3. Each candidate is rescored as `SF + (snail lookahead − static material)`. Forced wins or
+   losses from the lookahead override Stockfish. Stockfish's own scores are clamped (±1500 cp),
+   because it treats the virtual blockers as real pieces and can "find" mates that use them.
+4. If every candidate is doomed, or Stockfish isn't available, the best move from the full snail
+   search is played.
+
+Difficulty: Easy (SF depth 3, 1-ply lookahead, ±120 cp noise), Medium (8, 2, ±25), Hard (14, 3, 0).
+
+## Not yet done
+
+- Online multiplayer: `/game/:roomId` and the `GameTransport` interface are in place. A PartyKit
+  room server that relays moves and broadcasts authoritative snapshots after each tick is next.
+- A custom Stockfish build with native snails (spec Part 2, Method 2).
+
+## License
+
+The app code is unlicensed so far. Stockfish (bundled at build time from the `stockfish` npm
+package) is GPLv3.

@@ -1,0 +1,77 @@
+import type { Square } from 'chess.js';
+
+export type Color = 'w' | 'b';
+export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
+export type { Square };
+
+export interface Piece {
+  type: PieceType;
+  color: Color;
+}
+
+export interface SnailState {
+  square: Square;
+  /** White snail hunts the Black king; Black snail hunts the White king. */
+  color: Color;
+}
+
+export type GameStatus =
+  | 'in_progress'
+  | 'checkmate'
+  | 'snail_win_white'
+  | 'snail_win_black'
+  | 'draw';
+
+export type DrawReason =
+  | 'stalemate'
+  | 'threefold_repetition'
+  | 'fifty_move_rule'
+  | 'insufficient_material';
+
+export interface SnailMove {
+  color: Color;
+  from: Square;
+  to: Square;
+  /** Piece crushed on the landing square, if any. */
+  crushed?: Piece;
+}
+
+export interface TickEvent {
+  /** Ply count at which this tick happened. */
+  ply: number;
+  moves: SnailMove[];
+}
+
+export interface MoveInput {
+  from: Square;
+  to: Square;
+  promotion?: Exclude<PieceType, 'p' | 'k'>;
+}
+
+export interface MoveRecord extends MoveInput {
+  san: string;
+  color: Color;
+  piece: PieceType;
+  captured?: PieceType;
+  /** FEN after the move and any snail tick that followed it. */
+  fenAfter: string;
+  tick?: TickEvent;
+}
+
+export interface ImmortalChessState {
+  fen: string;
+  /** Number of half-moves played. A snail tick happens whenever this hits a multiple of 6. */
+  plyCount: number;
+  snails: { w: SnailState; b: SnailState };
+  gameStatus: GameStatus;
+  winner: Color | null;
+  drawReason?: DrawReason;
+  /** Human-readable explanation of how the game ended. */
+  endReason?: string;
+  history: MoveRecord[];
+  /** Repetition counts keyed by position (board, turn, castling, ep, snails). */
+  positionCounts: Record<string, number>;
+}
+
+export const TICK_INTERVAL = 6;
+export const DEFAULT_SNAILS: { w: Square; b: Square } = { w: 'a4', b: 'h5' };
