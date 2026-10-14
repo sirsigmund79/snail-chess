@@ -38,9 +38,13 @@ function withBlockers(
   snails: { w: SnailState; b: SnailState },
   blockerColor: Color,
 ): ParsedFen {
+  return withBlockerSquares(p, [snails.w, snails.b], blockerColor);
+}
+
+function withBlockerSquares(p: ParsedFen, list: SnailState[], blockerColor: Color): ParsedFen {
   const board = p.board.slice();
   const enemyKing = findKing(board, opposite(blockerColor));
-  for (const snail of [snails.w, snails.b]) {
+  for (const snail of list) {
     let type: PieceType = 'n';
     if (enemyKing) {
       const [sf, sr] = sqToCoords(snail.square);
@@ -55,6 +59,39 @@ function withBlockers(
   shadow.castling = sanitizeCastling({ ...p });
   if (shadow.ep && board[sqIndex(shadow.ep)]) shadow.ep = null;
   return shadow;
+}
+
+/**
+ * FEN to hand to Stockfish. Stockfish rejects positions with more than 16 pieces per side, so
+ * virtual blockers are only added while the side to move has room; snails without one are left
+ * as empty squares (the root is still restricted to snail-legal moves via `searchmoves`).
+ * Returns null if the result would be an illegal position for Stockfish (the side not to move
+ * in check).
+ */
+export function engineFen(fen: string, snails: { w: SnailState; b: SnailState }): string | null {
+  const p = parseFen(fen);
+  const own = p.board.filter((x) => x?.color === p.turn).length;
+  const room = Math.max(0, 16 - own);
+  const ordered = [snails.w, snails.b]
+    .map((s) => ({ s, d: kingDistance(p, s.square, p.turn) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, room)
+    .map((x) => x.s);
+  const shadow = withBlockerSquares(p, ordered, p.turn);
+  const out = serializeFen(shadow);
+  const enemy = opposite(p.turn);
+  const enemyKing = findKing(shadow.board, enemy);
+  if (!enemyKing) return null;
+  if (new Chess(out, { skipValidation: true }).isAttacked(enemyKing, p.turn)) return null;
+  return out;
+}
+
+function kingDistance(p: ParsedFen, sq: Square, color: Color): number {
+  const king = findKing(p.board, color);
+  if (!king) return 99;
+  const [a, b] = sqToCoords(sq);
+  const [c, d] = sqToCoords(king);
+  return Math.max(Math.abs(a - c), Math.abs(b - d));
 }
 
 export function shadowGame(fen: string, snails: { w: SnailState; b: SnailState }): Chess {

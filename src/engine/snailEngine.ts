@@ -18,6 +18,14 @@ export function pliesUntilTick(plyCount: number): number {
 }
 
 /**
+ * Full moves until the snails move, as players count them. Snails move right after Black's move,
+ * so this is the number of Black moves left in the cycle (3, 2 or 1).
+ */
+export function movesUntilSnails(plyCount: number): number {
+  return Math.ceil(pliesUntilTick(plyCount) / 2);
+}
+
+/**
  * Where a snail steps next. The primary step is (sign(dFile), sign(dRank)) toward the target.
  * If the other snail is in the way, fall back to any neighbouring square that still strictly
  * reduces the Chebyshev distance, preferring the one closest (Euclidean) to the target, then a

@@ -55,6 +55,8 @@ export interface MoveRecord extends MoveInput {
   captured?: PieceType;
   /** FEN after the move and any snail tick that followed it. */
   fenAfter: string;
+  /** FEN right after the move, before the snail tick (only set when a tick followed). */
+  fenBeforeTick?: string;
   tick?: TickEvent;
 }
 

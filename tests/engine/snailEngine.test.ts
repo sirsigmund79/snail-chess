@@ -5,6 +5,7 @@ import {
   chebyshev,
   isTickPly,
   nextSnailStep,
+  movesUntilSnails,
   pliesUntilTick,
 } from '../../src/engine/snailEngine';
 
@@ -49,6 +50,8 @@ describe('tick timing', () => {
     expect(pliesUntilTick(0)).toBe(6);
     expect(pliesUntilTick(5)).toBe(1);
     expect(pliesUntilTick(6)).toBe(6);
+    // Counted in moves: 3 at the start of a cycle, 1 when only Black's move remains.
+    expect([0, 1, 2, 3, 4, 5, 6].map(movesUntilSnails)).toEqual([3, 3, 2, 2, 1, 1, 3]);
   });
 });
 

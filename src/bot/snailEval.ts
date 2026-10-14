@@ -1,9 +1,9 @@
 import type { Move } from 'chess.js';
 import { applyMove, getLegalMoves, turn } from '../engine/game';
 import { legalMoves, inCheck } from '../engine/boardValidator';
-import { findKing, opposite, parseFen } from '../engine/fen';
+import { coordsToSq, findKing, opposite, parseFen, sqToCoords, type Board } from '../engine/fen';
 import { chebyshev, nextSnailStep, pliesUntilTick } from '../engine/snailEngine';
-import type { Color, ImmortalChessState, MoveInput } from '../engine/types';
+import type { Color, ImmortalChessState, MoveInput, Square } from '../engine/types';
 
 export const MATE = 100_000;
 
@@ -17,6 +17,11 @@ export interface SnailWeights {
   pathPenalty: number;
   /** Penalty when the enemy snail is adjacent and the tick is about to fire. */
   imminentPenalty: number;
+  /**
+   * Penalty for a king near the enemy snail with nowhere to run (e.g. castled behind its own
+   * pawns as the snail arrives). Scaled by how close the snail is.
+   */
+  boxedPenalty: number;
 }
 
 export const DEFAULT_WEIGHTS: SnailWeights = {
@@ -25,7 +30,40 @@ export const DEFAULT_WEIGHTS: SnailWeights = {
   exponent: 1.5,
   pathPenalty: 60,
   imminentPenalty: 400,
+  boxedPenalty: 350,
 };
+
+const BOXED_URGENCY: Record<number, number> = { 1: 1, 2: 0.7, 3: 0.35 };
+
+/**
+ * King flight squares that get out of the snail's reach: on the board, not a snail, not our own
+ * piece, and not adjacent to where the snail steps next. Attacks are ignored (cheap heuristic).
+ */
+function flightSquares(board: Board, king: Square, color: Color, snailNext: Square, snails: Square[]): number {
+  const [kf, kr] = sqToCoords(king);
+  let n = 0;
+  for (let df = -1; df <= 1; df++) {
+    for (let dr = -1; dr <= 1; dr++) {
+      if (!df && !dr) continue;
+      const f = kf + df;
+      const r = kr + dr;
+      if (f < 0 || f > 7 || r < 0 || r > 7) continue;
+      const sq = coordsToSq(f, r);
+      if (snails.includes(sq) || board[r * 8 + f]?.color === color) continue;
+      if (chebyshev(sq, snailNext) >= 2) n++;
+    }
+  }
+  return n;
+}
+
+function boxedTerm(board: Board, king: Square, color: Color, enemySnail: Square, ownSnail: Square, w: SnailWeights): number {
+  const urgency = BOXED_URGENCY[chebyshev(king, enemySnail)];
+  if (!urgency) return 0;
+  const next = nextSnailStep(enemySnail, king, ownSnail);
+  const flights = flightSquares(board, king, color, next, [enemySnail, ownSnail]);
+  const cramp = flights === 0 ? 1 : flights === 1 ? 0.4 : 0;
+  return w.boxedPenalty * urgency * cramp;
+}
 
 const VALUES: Record<string, number> = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
 
@@ -63,6 +101,8 @@ export function snailEval(
   const plies = pliesUntilTick(state.plyCount);
 
   let score = -w.alpha / dOwn ** w.exponent + w.beta / dEnemy ** w.exponent;
+  score -= boxedTerm(board, ownKing, color, enemySnail, ownSnail, w);
+  score += boxedTerm(board, enemyKing, enemy, ownSnail, enemySnail, w) / 2;
 
   // Our king standing on the enemy snail's next two steps is a trap waiting to close.
   const step1 = nextSnailStep(enemySnail, ownKing, ownSnail);

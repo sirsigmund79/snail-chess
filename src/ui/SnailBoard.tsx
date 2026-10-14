@@ -1,99 +1,159 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 import type { PromotionPieceOption, Square as BoardSquare } from 'react-chessboard/dist/chessboard/types';
-import { nextSnailStep, pliesUntilTick } from '../engine/snailEngine';
-import { findKing, parseFen } from '../engine/fen';
-import type { Color, ImmortalChessState, MoveInput, Square } from '../engine/types';
-
-const snailImage = (color: Color, flip: boolean) => {
-  const ring = color === 'w' ? '#fafaf9' : '#1c1917';
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='44' fill='${ring}' fill-opacity='0.55'/><text x='50' y='68' font-size='58' text-anchor='middle'${flip ? " transform='translate(100 0) scale(-1 1)'" : ''}>🐌</text></svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-};
+import { findKing, parseFen, sqToCoords } from '../engine/fen';
+import { nextSnailStep } from '../engine/snailEngine';
+import type { Color, MoveInput, MoveRecord, Square } from '../engine/types';
+import type { Frame } from './usePlayback';
 
 interface Props {
-  state: ImmortalChessState;
+  frame: Frame;
+  lastMove?: MoveRecord;
   orientation: 'white' | 'black';
   interactive: boolean;
+  /** Snails move after the next ply: make their target squares throb. */
+  imminent: boolean;
+  /** Playback in progress: a click skips it instead of selecting a piece. */
+  busy: boolean;
+  onSkip: () => void;
   onMove: (move: MoveInput) => boolean;
 }
 
-export function SnailBoard({ state, orientation, interactive, onMove }: Props) {
-  const [selected, setSelected] = useState<Square | null>(null);
-  const { board } = useMemo(() => parseFen(state.fen), [state.fen]);
-  const last = state.history[state.history.length - 1];
-  const lastTick = last?.tick;
+/** Top-left corner of a square as percentages of the board, honouring orientation. */
+function place(sq: Square, orientation: 'white' | 'black') {
+  const [f, r] = sqToCoords(sq);
+  const col = orientation === 'white' ? f : 7 - f;
+  const row = orientation === 'white' ? 7 - r : r;
+  return { left: `${col * 12.5}%`, top: `${row * 12.5}%` };
+}
 
-  const styles = useMemo(() => {
+export function SnailBoard({ frame, lastMove, orientation, interactive, imminent, busy, onSkip, onMove }: Props) {
+  const [selected, setSelected] = useState<Square | null>(null);
+  const shakeRef = useRef<HTMLDivElement>(null);
+  const { board, turn: turnColor } = useMemo(() => parseFen(frame.fen), [frame.fen]);
+
+  // Board shake on every crush.
+  const crushKey = frame.crush?.key;
+  useEffect(() => {
+    if (!crushKey || !shakeRef.current?.animate) return;
+    shakeRef.current.animate(
+      [
+        { transform: 'translate(0,0)' },
+        { transform: 'translate(-6px, 3px) rotate(-0.6deg)' },
+        { transform: 'translate(5px, -4px) rotate(0.5deg)' },
+        { transform: 'translate(-4px, 2px)' },
+        { transform: 'translate(3px, -1px)' },
+        { transform: 'translate(0,0)' },
+      ],
+      { duration: 450, easing: 'ease-out' },
+    );
+  }, [crushKey]);
+
+  const snails = (['w', 'b'] as const).map((color) => {
+    const enemy: Color = color === 'w' ? 'b' : 'w';
+    const snail = frame.snails[color];
+    const king = findKing(board, enemy);
+    const next = king ? nextSnailStep(snail.square, king, frame.snails[enemy].square) : snail.square;
+    const [sf] = sqToCoords(snail.square);
+    const [nf] = sqToCoords(next);
+    const movesRightOnScreen = orientation === 'white' ? nf > sf : nf < sf;
+    return { color, square: snail.square, next, faceRight: movesRightOnScreen };
+  });
+
+  const squareStyles = useMemo(() => {
     const out: Partial<Record<Square, Record<string, string | number>>> = {};
-    if (last) {
-      out[last.from] = { backgroundColor: 'rgba(250, 204, 21, 0.35)' };
-      out[last.to] = { backgroundColor: 'rgba(250, 204, 21, 0.45)' };
+    if (lastMove) {
+      out[lastMove.from] = { backgroundColor: 'rgba(250, 204, 21, 0.35)' };
+      out[lastMove.to] = { backgroundColor: 'rgba(250, 204, 21, 0.45)' };
     }
     if (selected) out[selected] = { backgroundColor: 'rgba(16, 185, 129, 0.45)' };
-    const tickNext = pliesUntilTick(state.plyCount) === 1;
-    for (const color of ['w', 'b'] as const) {
-      const snail = state.snails[color];
-      const enemy = color === 'w' ? 'b' : 'w';
-      const king = findKing(board, enemy);
-      if (!king) continue;
-      const step = nextSnailStep(snail.square, king, state.snails[enemy].square);
-      const facingRight = step[0] > snail.square[0];
-      out[snail.square] = {
-        ...out[snail.square],
-        backgroundImage: snailImage(color, orientation === 'white' ? facingRight : !facingRight),
-        backgroundSize: '90%',
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'center',
-        cursor: 'not-allowed',
-      };
-      if (step !== snail.square) {
-        out[step] = {
-          ...out[step],
-          boxShadow: `inset 0 0 0 ${tickNext ? 4 : 2}px ${color === 'w' ? 'rgba(14,165,233,0.9)' : 'rgba(239,68,68,0.9)'}`,
-        };
-      }
-    }
-    for (const sm of lastTick?.moves ?? []) {
-      if (sm.crushed) out[sm.to] = { ...out[sm.to], outline: '3px solid rgba(220,38,38,0.8)', outlineOffset: '-3px' };
-    }
     return out;
-  }, [state, board, last, lastTick, selected, orientation]);
+  }, [lastMove, selected]);
 
   const tryMove = (from: Square, to: Square, promotion?: MoveInput['promotion']) => {
     setSelected(null);
     return onMove({ from, to, ...(promotion ? { promotion } : {}) });
   };
-
-  const turnColor = state.fen.split(' ')[1] as Color;
+  const pieceAt = (sq: Square) => board[(Number(sq[1]) - 1) * 8 + (sq.charCodeAt(0) - 97)];
 
   return (
-    <Chessboard
-      id="snail-board"
-      position={state.fen}
-      boardOrientation={orientation}
-      arePiecesDraggable={interactive}
-      isDraggablePiece={({ piece }) => interactive && piece[0] === turnColor}
-      customSquareStyles={styles as Record<BoardSquare, Record<string, string | number>>}
-      // Promotions go through onPromotionPieceSelect instead.
-      onPieceDrop={(from, to) => tryMove(from as Square, to as Square)}
-      onPromotionPieceSelect={(piece?: PromotionPieceOption, from?: BoardSquare, to?: BoardSquare) => {
-        if (!piece || !from || !to) return false;
-        return tryMove(from as Square, to as Square, piece[1].toLowerCase() as MoveInput['promotion']);
-      }}
-      onSquareClick={(sq) => {
-        if (!interactive) return;
-        const square = sq as Square;
-        const piece = board[(Number(square[1]) - 1) * 8 + (square.charCodeAt(0) - 97)];
-        if (selected && selected !== square) {
-          const from = board[(Number(selected[1]) - 1) * 8 + (selected.charCodeAt(0) - 97)];
-          const promo = from?.type === 'p' && (square[1] === '8' || square[1] === '1') ? 'q' : undefined;
-          if (tryMove(selected, square, promo)) return;
-        }
-        setSelected(piece && piece.color === turnColor ? square : null);
-      }}
-      customBoardStyle={{ borderRadius: 6, boxShadow: '0 6px 24px rgba(0,0,0,0.25)' }}
-      animationDuration={200}
-    />
+    <div ref={shakeRef} className="relative" onClickCapture={(e) => {
+      if (busy) {
+        e.stopPropagation();
+        onSkip();
+      }
+    }}>
+      <Chessboard
+        id="snail-board"
+        position={frame.fen}
+        boardOrientation={orientation}
+        arePiecesDraggable={interactive}
+        isDraggablePiece={({ piece }) => interactive && piece[0] === turnColor}
+        customSquareStyles={squareStyles as Record<BoardSquare, Record<string, string | number>>}
+        // Promotions go through onPromotionPieceSelect instead.
+        onPieceDrop={(from, to) => tryMove(from as Square, to as Square)}
+        onPromotionPieceSelect={(piece?: PromotionPieceOption, from?: BoardSquare, to?: BoardSquare) => {
+          if (!piece || !from || !to) return false;
+          return tryMove(from as Square, to as Square, piece[1].toLowerCase() as MoveInput['promotion']);
+        }}
+        onSquareClick={(sq) => {
+          if (!interactive) return;
+          const square = sq as Square;
+          if (selected && selected !== square) {
+            const from = pieceAt(selected);
+            const promo = from?.type === 'p' && (square[1] === '8' || square[1] === '1') ? 'q' : undefined;
+            if (tryMove(selected, square, promo)) return;
+          }
+          const piece = pieceAt(square);
+          setSelected(piece && piece.color === turnColor ? square : null);
+        }}
+        customBoardStyle={{ borderRadius: 6, boxShadow: '0 6px 24px rgba(0,0,0,0.25)' }}
+        animationDuration={250}
+      />
+
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-md" aria-hidden>
+        {snails.map((s) =>
+          s.next === s.square ? null : (
+            <div
+              key={`target-${s.color}`}
+              className={`snail-target snail-target-${s.color} ${imminent || frame.imminent ? 'snail-target-imminent' : ''}`}
+              style={{ ...place(s.next, orientation), width: '12.5%', height: '12.5%' }}
+            />
+          ),
+        )}
+        {frame.crush && (
+          <div key={frame.crush.key} className="snail-crush" style={{ ...place(frame.crush.square, orientation), width: '12.5%', height: '12.5%' }}>
+            💥
+          </div>
+        )}
+        {snails.map((s) => (
+          <div
+            key={`snail-${s.color}`}
+            data-testid={`snail-piece-${s.color}`}
+            data-square={s.square}
+            className={`snail-piece snail-piece-${s.color}`}
+            style={{ ...place(s.square, orientation), width: '12.5%', height: '12.5%' }}
+          >
+            <span className={s.faceRight ? 'snail-face-right' : ''}>
+              <span className="snail-body">🐌</span>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div aria-live="polite" className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2">
+        {frame.banner && (
+          <div
+            key={frame.banner.text}
+            data-testid="snail-banner"
+            className={`snail-banner mx-auto w-fit max-w-[92%] rounded-xl px-5 py-3 text-center text-lg font-bold shadow-xl sm:text-xl ${
+              frame.banner.tone === 'danger' ? 'bg-red-700/90 text-white' : 'bg-stone-900/85 text-amber-100'
+            }`}
+          >
+            {frame.banner.text}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

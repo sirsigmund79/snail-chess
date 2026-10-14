@@ -3,8 +3,12 @@ import { BotClient } from '../bot/botClient';
 import type { Level } from '../bot/hybrid';
 import { applyMove, createGame, IllegalMoveError, turn } from '../engine/game';
 import type { Color, ImmortalChessState, MoveInput } from '../engine/types';
+import { usePlayback } from './usePlayback';
 
 export type Mode = 'hotseat' | 'bot';
+
+/** Pause between the board settling and the bot's move appearing (ms). */
+const BOT_MOVE_PAUSE = 450;
 
 export interface GameSettings {
   mode: Mode;
@@ -20,13 +24,16 @@ export function useSnailGame(settings: GameSettings) {
   const botRef = useRef<BotClient | null>(null);
   const state = stack[stack.length - 1];
 
+  const playback = usePlayback(state);
+  const [botPick, setBotPick] = useState<{ for: ImmortalChessState; move: MoveInput } | null>(null);
+
   const isBotTurn =
     settings.mode === 'bot' && state.gameStatus === 'in_progress' && turn(state) !== settings.humanColor;
 
   /** Validate and play a human move; returns false (and changes nothing) if illegal. */
   const play = useCallback(
     (move: MoveInput): boolean => {
-      if (isBotTurn) return false;
+      if (isBotTurn || playback.busy) return false;
       let next: ImmortalChessState;
       try {
         next = applyMove(state, move);
@@ -37,7 +44,7 @@ export function useSnailGame(settings: GameSettings) {
       setStack((s) => (s[s.length - 1] === state ? [...s, next] : s));
       return true;
     },
-    [state, isBotTurn],
+    [state, isBotTurn, playback.busy],
   );
 
   useEffect(() => {
@@ -49,10 +56,10 @@ export function useSnailGame(settings: GameSettings) {
     botRef.current
       .choose(state, settings.level)
       .then(async (choice) => {
-        // Give the human a beat to see their own move land.
-        const wait = Math.max(0, 350 - (performance.now() - started));
+        // Never reply instantly, even when the search is quick.
+        const wait = Math.max(0, 300 - (performance.now() - started));
         await new Promise((r) => setTimeout(r, wait));
-        if (!cancelled) setStack((s) => (s[s.length - 1] === state ? [...s, applyMove(state, choice.move)] : s));
+        if (!cancelled) setBotPick({ for: state, move: choice.move });
       })
       .catch((e) => !cancelled && setBotError(String(e)))
       .finally(() => !cancelled && setThinking(false));
@@ -60,6 +67,17 @@ export function useSnailGame(settings: GameSettings) {
       cancelled = true;
     };
   }, [isBotTurn, state, settings.level]);
+
+  // The bot thinks during snail playback but only moves once the board has settled, so its
+  // reply is a separate event from the snails.
+  useEffect(() => {
+    if (!botPick || botPick.for !== state || playback.busy) return;
+    const t = setTimeout(
+      () => setStack((s) => (s[s.length - 1] === state ? [...s, applyMove(state, botPick.move)] : s)),
+      BOT_MOVE_PAUSE,
+    );
+    return () => clearTimeout(t);
+  }, [botPick, state, playback.busy]);
 
   useEffect(() => () => botRef.current?.dispose(), []);
 
@@ -80,5 +98,5 @@ export function useSnailGame(settings: GameSettings) {
     });
   }, [settings.mode, settings.humanColor]);
 
-  return { state, play, reset, undo, thinking, botError, isBotTurn, canUndo: stack.length > 1 };
+  return { state, play, reset, playback, undo, thinking, botError, isBotTurn, canUndo: stack.length > 1 };
 }

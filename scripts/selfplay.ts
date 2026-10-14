@@ -2,7 +2,7 @@
  * Headless bot-vs-bot batch runner (spec Part 4.2).
  *
  *   npx tsx scripts/selfplay.ts --games 20 [--white medium] [--black hard] [--no-stockfish]
- *                               [--max-plies 200] [--alpha 120]
+ *                               [--max-plies 200] [--alpha 120] [--seed 1]
  *
  * Colours alternate each game. Reports how games end, average length and "unforced snail
  * deaths": a king crushed when its owner, on their last move, had a move that kept the king
@@ -10,6 +10,7 @@
  */
 import { parseArgs } from 'node:util';
 import { chooseMove, type Level } from '../src/bot/hybrid';
+import { seededRng } from '../src/bot/rng';
 import { DEFAULT_WEIGHTS, scoreMoves, type SnailWeights } from '../src/bot/snailEval';
 import type { CandidateEngine } from '../src/bot/uci';
 import {
@@ -35,6 +36,7 @@ const { values } = parseArgs({
     'no-stockfish': { type: 'boolean', default: false },
     alpha: { type: 'string' },
     quiet: { type: 'boolean', default: false },
+    seed: { type: 'string', default: '1' },
   },
 });
 
@@ -68,6 +70,7 @@ interface Result {
 }
 
 async function playGame(i: number): Promise<Result> {
+  const rng = seededRng(Number(values.seed) * 1000 + i);
   const flip = i % 2 === 1;
   const seat = (c: 'w' | 'b') => ((c === 'w') !== flip ? 0 : 1);
   let state = createGame();
@@ -78,6 +81,7 @@ async function playGame(i: number): Promise<Result> {
     const choice = await chooseMove(state, levels[s], {
       engine: engines[s],
       lookahead: (st, d, only) => scoreMoves(st, d, weights, only).scored,
+      rng,
     });
     prevByColor = { ...prevByColor, [side]: state };
     state = applyMove(state, choice.move);

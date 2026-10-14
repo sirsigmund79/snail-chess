@@ -53,3 +53,27 @@ describe.each(engines)('snail traps ($name)', ({ engine }) => {
   });
 });
 
+
+describe.runIf(process.env.STOCKFISH)('stockfish is actually consulted', () => {
+  it.each(levels)('uses Stockfish candidates in the opening (%s)', async (level) => {
+    const g = applyMove(createGame(), { from: 'e2', to: 'e4' });
+    const choice = await chooseMove(g, level, { engine: engines[1].engine, lookahead });
+    expect(choice.source).toBe('stockfish+snail');
+    expect(choice.candidates.length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe('snail king safety', () => {
+  it('does not castle into the path of an oncoming snail', async () => {
+    // Black's snail on f3 heads for g1: castling short walks into a box behind f2/g2/h2.
+    const g = createGame({
+      fen: 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P4/PPP2PPP/RNBQK2R w KQkq - 0 1',
+      snails: { w: 'a6', b: 'f3' },
+      plyCount: 7,
+    });
+    for (const level of levels) {
+      const { move } = await chooseMove(g, level, { engine: null, lookahead, rng: () => 0.5 });
+      expect(`${move.from}${move.to}`, level).not.toBe('e1g1');
+    }
+  });
+});

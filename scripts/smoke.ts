@@ -1,7 +1,8 @@
 /**
  * Browser smoke test against `npm run preview` (default http://localhost:4173):
- *   1. hot-seat: play 6 plies by clicking, assert both snails stepped;
- *   2. vs bot: make a move as White and wait for the bot (Stockfish worker + search worker) to reply.
+ *   1. hot-seat: play 6 plies; the snails must step *after* the move, one at a time, with a banner;
+ *   2. vs bot: play 1.e4 in several fresh games; the bot (Stockfish + search workers) must reply,
+ *      and not always with the same move.
  *
  *   npx tsx scripts/smoke.ts [url]
  */
@@ -29,26 +30,58 @@ const move = async (from: string, to: string) => {
   await click(to);
 };
 
+const shot = (name: string) => page.screenshot({ path: `${process.env.SMOKE_DIR ?? '.'}/smoke-${name}.png` });
+const snailAt = (c: 'w' | 'b') => page.getAttribute(`[data-testid="snail-piece-${c}"]`, 'data-square');
+
 await page.goto(url);
 await page.selectOption('select >> nth=0', 'hotseat');
-for (const [f, t] of [['e2', 'e4'], ['e7', 'e5'], ['g1', 'f3'], ['b8', 'c6'], ['f1', 'c4'], ['g8', 'f6']]) {
+for (const [f, t] of [['e2', 'e4'], ['e7', 'e5'], ['g1', 'f3'], ['b8', 'c6'], ['f1', 'c4']]) {
   await move(f, t);
 }
-const w = await page.textContent('[data-testid="snail-w"]');
-const b = await page.textContent('[data-testid="snail-b"]');
-console.log(`after 6 plies: white snail ${w}, black snail ${b}`);
-if (w !== 'b5' || b !== 'g4') throw new Error('snails did not tick');
-await page.screenshot({ path: process.env.SMOKE_SHOT ?? 'smoke-hotseat.png' });
+console.log('countdown before 6th ply:', await page.textContent('[data-testid="tick-countdown"]'));
+await shot('imminent');
+await move('g8', 'f6');
 
-await page.selectOption('select >> nth=0', 'bot');
+// Staged playback: the snails must not have moved yet when Black's move lands.
+const immediately = await snailAt('w');
+if (immediately !== 'a4') throw new Error(`white snail moved in the same frame as the move (${immediately})`);
+await page.waitForSelector('[data-testid="snail-banner"]', { timeout: 3000 });
+console.log('banner:', await page.textContent('[data-testid="snail-banner"]'));
+await page.waitForFunction(() => document.querySelector('[data-testid="snail-piece-w"]')?.getAttribute('data-square') === 'b5', null, { timeout: 5000 });
+await page.waitForTimeout(250);
+await shot('white-step');
+if ((await snailAt('b')) !== 'h5') throw new Error('black snail should step after white');
+await page.waitForFunction(() => document.querySelector('[data-testid="snail-piece-b"]')?.getAttribute('data-square') === 'g4', null, { timeout: 5000 });
+await page.waitForSelector('[data-testid="snail-banner"]', { state: 'detached', timeout: 5000 });
+console.log(`after playback: white snail ${await snailAt('w')}, black snail ${await snailAt('b')}`);
+console.log('countdown after tick:', await page.textContent('[data-testid="tick-countdown"]'));
+
+// A crush: Black parks a pawn on b5, right where White's snail lands at the first tick.
 await page.click('text=New game');
-await move('e2', 'e4');
-const t0 = Date.now();
-await page.waitForFunction(() => document.querySelectorAll('[data-testid="move-list"] li').length >= 2, null, {
-  timeout: 60_000,
-});
-console.log(`bot replied in ${Date.now() - t0}ms: ${await page.textContent('[data-testid="move-list"]')}`);
-await page.screenshot({ path: process.env.SMOKE_SHOT_BOT ?? 'smoke-bot.png' });
+for (const [f, t] of [['e2', 'e4'], ['b7', 'b5'], ['g1', 'f3'], ['a7', 'a6'], ['f1', 'e2'], ['c8', 'b7']]) {
+  await move(f, t);
+}
+await page.waitForFunction(() => document.querySelector('[data-testid="snail-banner"]')?.textContent?.includes('crushed'), null, { timeout: 5000 });
+await page.waitForTimeout(150);
+console.log('crush banner:', await page.textContent('[data-testid="snail-banner"]'));
+await shot('crush');
+await page.keyboard.press('Space'); // skip the rest
+await page.waitForSelector('[data-testid="snail-banner"]', { state: 'detached', timeout: 2000 });
+
+// vs bot: the reply to 1.e4 should vary across fresh games.
+await page.selectOption('select >> nth=0', 'bot');
+const replies: string[] = [];
+for (let i = 0; i < 4; i++) {
+  await page.click('text=New game');
+  await move('e2', 'e4');
+  const t0 = Date.now();
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid="move-row"]').length >= 2, null, { timeout: 60_000 });
+  const rows = await page.$$eval('[data-testid="move-row"]', (els) => els.map((e) => e.textContent?.trim()));
+  replies.push(String(rows[1]));
+  console.log(`game ${i + 1}: bot replied ${rows[1]} after ${Date.now() - t0}ms`);
+}
+if (new Set(replies).size < 2) errors.push(`bot replies did not vary: ${replies.join(', ')}`);
+await shot('bot');
 await browser.close();
 if (!stockfishLoaded) errors.push('Stockfish WASM was never fetched');
 if (errors.length) {

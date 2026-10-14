@@ -9,7 +9,7 @@ import {
   type ImmortalChessState,
   type Square,
 } from '../../src/engine';
-import { inCheck } from '../../src/engine/boardValidator';
+import { engineFen, inCheck } from '../../src/engine/boardValidator';
 
 const uci = (s: ImmortalChessState) =>
   getLegalMoves(s).map((m) => m.from + m.to + (m.promotion ?? ''));
@@ -47,6 +47,9 @@ describe('game flow', () => {
     expect(g.snails.w.square).toBe('b5');
     expect(g.snails.b.square).toBe('g4');
     expect(g.history[5].tick?.moves).toHaveLength(2);
+    // The board between Black's move and the snail steps is kept for playback.
+    expect(g.history[5].fenBeforeTick).toBe(g.history[5].fenAfter); // nothing crushed here
+    expect(g.history[4].fenBeforeTick).toBeUndefined();
   });
 
   it('crushes a piece on the landing square', () => {
@@ -61,6 +64,7 @@ describe('game flow', () => {
     expect(g.snails.w.square).toBe('e7');
     expect(g.history[0].tick?.moves[0].crushed).toEqual({ type: 'p', color: 'b' });
     expect(g.fen.split(' ')[0]).toBe('rnbqkbnr/1ppp1ppp/p7/8/4P3/8/PPPP1PPP/RNBQKBNR');
+    expect(g.history[0].fenBeforeTick?.split(' ')[0]).toBe('rnbqkbnr/1ppppppp/p7/8/4P3/8/PPPP1PPP/RNBQKBNR');
   });
 
   it('declares a snail victory when a king is crushed', () => {
@@ -149,5 +153,22 @@ describe('SAN and snapshots', () => {
     expect(r.fen).toBe(g.fen);
     expect(r.snails).toEqual(g.snails);
     expect(r.plyCount).toBe(6);
+  });
+});
+
+describe('engineFen (Stockfish input)', () => {
+  const countSide = (fen: string, upper: boolean) =>
+    [...fen.split(' ')[0]].filter((c) => /[a-z]/i.test(c) && (c === c.toUpperCase()) === upper).length;
+
+  it('never gives a side more than 16 pieces', () => {
+    const g = play(createGame(), 'e2e4');
+    const fen = engineFen(g.fen, g.snails)!;
+    expect(countSide(fen, false)).toBeLessThanOrEqual(16);
+    expect(countSide(fen, true)).toBeLessThanOrEqual(16);
+  });
+
+  it('adds both blockers when there is room', () => {
+    const g = createGame({ fen: 'k6r/8/8/8/8/8/4P3/R3K3 w - - 0 1', snails: { w: 'a4', b: 'e3' } });
+    expect(engineFen(g.fen, g.snails)!.split(' ')[0]).toBe('k6r/8/8/8/N7/4N3/4P3/R3K3');
   });
 });

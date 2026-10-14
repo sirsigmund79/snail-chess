@@ -154,7 +154,9 @@ export function applyMove(
   let snails = state.snails;
   let tick: TickEvent | undefined;
   let crushedKing: Color | null = null;
+  let fenBeforeTick: string | undefined;
   if (isTickPly(plyCount)) {
+    fenBeforeTick = fen;
     const result = applySnailTick(parsed.board, snails);
     snails = result.snails;
     crushedKing = result.crushedKing;
@@ -174,7 +176,7 @@ export function applyMove(
     piece: move.piece,
     ...(move.captured ? { captured: move.captured } : {}),
     fenAfter: fen,
-    ...(tick ? { tick } : {}),
+    ...(tick ? { tick, fenBeforeTick } : {}),
   };
 
   const next: ImmortalChessState = {

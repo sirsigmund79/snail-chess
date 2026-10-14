@@ -59,7 +59,7 @@ scripts/             selfplay.ts, smoke.ts, nodeStockfish.ts, copy-stockfish.mjs
 **Shadow positions.** chess.js knows nothing about snails, so moves are generated on a copy of the
 position with a virtual piece of the side to move on each snail square. chess.js then forbids
 landing on or sliding through snails, and the snails block enemy attacks on the king. Moves
-starting on those squares are dropped. The same shadow FEN goes to Stockfish.
+starting on those squares are dropped.
 
 **Hybrid bot.**
 1. A shallow full-width snail-aware search looks for forced snail wins, which Stockfish can't see.
@@ -70,7 +70,32 @@ starting on those squares are dropped. The same shadow FEN goes to Stockfish.
 4. If every candidate is doomed, or Stockfish isn't available, the best move from the full snail
    search is played.
 
-Difficulty: Easy (SF depth 3, 1-ply lookahead, ±120 cp noise), Medium (8, 2, ±25), Hard (14, 3, 0).
+**Variety.** Stockfish is deterministic, so the bot doesn't simply play the top move. It samples
+among moves within a per-level margin of the best, weighted by `exp((score − best) / T)`, and
+looks at 8 Stockfish lines during the first 8 plies. Forced wins and escapes are never sampled.
+
+| Level | SF depth | Snail lookahead | Margin / T (cp) |
+|---|---|---|---|
+| Easy | 3 | 1 ply | 150 / 80 |
+| Medium | 8 | 2 plies | 40 / 20 |
+| Hard | 14 | 3 plies | 25 / 12 |
+
+**Stockfish input.** Stockfish rejects positions with more than 16 pieces per side. A virtual
+blocker is only added for a snail while the side to move has room. Otherwise the snail square is
+left empty, which is safe because the root is already restricted to snail-legal moves.
+
+## Snail playback
+
+A move that triggers the snails plays back as separate beats:
+
+1. The move lands.
+2. "The snails stir…"
+3. White's snail slides; if it lands on a piece, there's an impact, a board shake and a banner.
+4. Black's snail does the same.
+5. The board settles.
+
+The bot can think during playback but only moves once the board has settled. Click the board or
+press Space to skip. See `src/ui/usePlayback.ts`.
 
 ## Not yet done
 
