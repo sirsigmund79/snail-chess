@@ -27,14 +27,16 @@ function play(state: ImmortalChessState, ...moves: string[]) {
 }
 
 describe('game flow', () => {
-  it('starts with snails on a4 / h5 and 20 legal moves minus blocked ones', () => {
+  it('starts with both snails on the a-file (a4 / a5)', () => {
     const g = createGame();
     expect(g.snails.w.square).toBe('a4');
-    expect(g.snails.b.square).toBe('h5');
+    expect(g.snails.b.square).toBe('a5');
     const moves = uci(g);
     expect(moves).not.toContain('a2a4'); // lands on snail
     expect(moves).toContain('a2a3');
     expect(moves).toHaveLength(19);
+    // Black can't push a7-a5 onto its own snail either.
+    expect(uci(play(g, 'e2e4'))).not.toContain('a7a5');
   });
 
   it('advances snails after every 6th ply only', () => {
@@ -45,7 +47,7 @@ describe('game flow', () => {
     g = play(g, 'g8f6');
     expect(g.plyCount).toBe(6);
     expect(g.snails.w.square).toBe('b5');
-    expect(g.snails.b.square).toBe('g4');
+    expect(g.snails.b.square).toBe('b4');
     expect(g.history[5].tick?.moves).toHaveLength(2);
     // The board between Black's move and the snail steps is kept for playback.
     expect(g.history[5].fenBeforeTick).toBe(g.history[5].fenAfter); // nothing crushed here
@@ -148,7 +150,7 @@ describe('SAN and snapshots', () => {
   it('round-trips through a snapshot', () => {
     const g = play(createGame(), 'e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1c4', 'g8f6');
     const snap = toSnapshot(g);
-    expect(snap).toMatch(/\[S:b5,g4\] \[P:6\]$/);
+    expect(snap).toMatch(/\[S:b5,b4\] \[P:6\]$/);
     const r = fromSnapshot(snap);
     expect(r.fen).toBe(g.fen);
     expect(r.snails).toEqual(g.snails);

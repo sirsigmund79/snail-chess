@@ -50,8 +50,8 @@ console.log('banner:', await page.textContent('[data-testid="snail-banner"]'));
 await page.waitForFunction(() => document.querySelector('[data-testid="snail-piece-w"]')?.getAttribute('data-square') === 'b5', null, { timeout: 5000 });
 await page.waitForTimeout(250);
 await shot('white-step');
-if ((await snailAt('b')) !== 'h5') throw new Error('black snail should step after white');
-await page.waitForFunction(() => document.querySelector('[data-testid="snail-piece-b"]')?.getAttribute('data-square') === 'g4', null, { timeout: 5000 });
+if ((await snailAt('b')) !== 'a5') throw new Error('black snail should step after white');
+await page.waitForFunction(() => document.querySelector('[data-testid="snail-piece-b"]')?.getAttribute('data-square') === 'b4', null, { timeout: 5000 });
 await page.waitForSelector('[data-testid="snail-banner"]', { state: 'detached', timeout: 5000 });
 console.log(`after playback: white snail ${await snailAt('w')}, black snail ${await snailAt('b')}`);
 console.log('countdown after tick:', await page.textContent('[data-testid="tick-countdown"]'));
@@ -70,7 +70,7 @@ await page.waitForSelector('[data-testid="snail-banner"]', { state: 'detached', 
 
 // SLIMED: shuffle knights for 24 plies so White's snail walks a4→b5→c6→d7→e8 into Black's king.
 await page.click('text=New game');
-const shuffle = [['b1', 'c3'], ['g8', 'h6'], ['c3', 'b1'], ['h6', 'g8']];
+const shuffle = [['g1', 'f3'], ['g8', 'h6'], ['f3', 'g1'], ['h6', 'g8']]; // clear of both snails' paths
 for (let i = 0; i < 24; i++) {
   const [f, t] = shuffle[i % 4];
   await page.waitForFunction(() => !document.querySelector('[data-testid="snail-banner"]'), null, { timeout: 15000 });

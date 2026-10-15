@@ -76,4 +76,4 @@ export interface ImmortalChessState {
 }
 
 export const TICK_INTERVAL = 6;
-export const DEFAULT_SNAILS: { w: Square; b: Square } = { w: 'a4', b: 'h5' };
+export const DEFAULT_SNAILS: { w: Square; b: Square } = { w: 'a4', b: 'a5' };

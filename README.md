@@ -26,7 +26,7 @@ SPA fallback.
 
 | Rule | Behaviour |
 |---|---|
-| Start | White snail **a4** (hunts the Black king), Black snail **h5** (hunts the White king). |
+| Start | Both snails start on the a-file: White's on **a4** (hunts the Black king), Black's on **a5** (hunts the White king). |
 | Timing | A tick fires after plies 6, 12, 18… (after Black's 3rd, 6th… move). White's snail resolves first. |
 | Step | `(sign(dFile), sign(dRank))` toward the target king, i.e. one Chebyshev step (diagonal when both axes differ). |
 | Clash | If the other snail is on that square, the snail takes another neighbouring square that still strictly shortens its Chebyshev distance (nearest to the king first), or waits. |
@@ -43,7 +43,7 @@ src/engine/   pure rules, no DOM
   fen.ts             FEN parse/serialise, castling sanitising
   snailEngine.ts     snail step, clash handling, tick + crush
   boardValidator.ts  snail-aware move generation on a chess.js "shadow" position
-  game.ts            createGame / applyMove / status / snapshots ("<fen> [S:a4,h5] [P:6]")
+  game.ts            createGame / applyMove / status / snapshots ("<fen> [S:a4,a5] [P:6]")
 src/bot/
   snailEval.ts       material + snail heuristics (α/β distance terms, path and imminent-crush
                      penalties) and a snail-aware alpha-beta search over the real rules

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "lang": "en",
+  "project": "Immortal Snail Chess",
+  "round": "05",
+  "nativeViewport": "390x844",
+  "brief": "Round 04 refined. Snails drawn plain, move dots in each player's bar (snail after Black's), active dot or icon slightly bolder, coral only on the snails' move, board a little higher, new How to play sheet, and both snails starting on the a-file.",
+  "candidates": [
+    {"id": "idle", "name": "Your move", "concept": "Your third move of the cycle is active (bold ring); Black has one move left, then the snails.", "typography": "Figtree 800 / 700.", "palette": ["#ffffff", "#111111", "#ff5a4e", "#ffb3b3"], "traits": ["Plain snails on the board", "Coral only on the snails' next squares"], "source": "idle.html"},
+    {"id": "selected", "name": "Bishop selected", "concept": "Every legal square of the bishop on c4 in bright blue, from the real engine.", "typography": "Figtree 800 / 700.", "palette": ["#ffffff", "#111111", "#2e9bff", "#ff5a4e"], "traits": ["Legal squares: b5 a6 d5 e6 f7 d3 e2 f1 b3 a2"], "source": "selected.html"},
+    {"id": "snails", "name": "Snails' move", "concept": "After Black's third move, all dots are filled and the snail icon turns coral and bold: the snails are moving.", "typography": "Figtree 800 / 700.", "palette": ["#ffffff", "#111111", "#ff5a4e"], "traits": ["The only time the indicator turns coral"], "source": "snails.html"},
+    {"id": "rules", "name": "How to play", "concept": "Snail icon and Immortal Snail Chess header, then five rules.", "typography": "Figtree 800 heading, 500 body.", "palette": ["#ffffff", "#111111", "#ffb3b3"], "traits": ["New wording for rules 1–3"], "source": "rules.html"}
+  ]
+}
