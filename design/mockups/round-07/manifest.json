@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "lang": "en",
+  "project": "Immortal Snail Chess",
+  "round": "07",
+  "nativeViewport": "390x844",
+  "brief": "Just for fun: hyperpop colorways of the round-05 layout. Bishop selected (legal colour) with both snails and their next squares (snail colour) visible.",
+  "candidates": [
+    {
+      "id": "bubblegum",
+      "name": "Bubblegum Bass",
+      "concept": "Pink everything, a chrome rim, electric cyan moves and acid-lime snails.",
+      "typography": "Figtree (unchanged); gradient wordmark",
+      "palette": [
+        "#ffd3ef",
+        "#ff8fd2",
+        "#00e1ff",
+        "#b8ff1f",
+        "#2a0033"
+      ],
+      "traits": [
+        "One colour = legal moves",
+        "One colour = snails"
+      ],
+      "source": "bubblegum.html"
+    },
+    {
+      "id": "acid",
+      "name": "Acid Rave",
+      "concept": "Black room, highlighter-yellow and violet board, hot-pink moves, traffic-cone snails.",
+      "typography": "Figtree (unchanged); gradient wordmark",
+      "palette": [
+        "#0b0b0f",
+        "#e9ff3b",
+        "#9b5cff",
+        "#ff2bd6",
+        "#ff6a00"
+      ],
+      "traits": [
+        "One colour = legal moves",
+        "One colour = snails"
+      ],
+      "source": "acid.html"
+    },
+    {
+      "id": "chrome",
+      "name": "Y2K Chrome",
+      "concept": "Holographic background, silver board, violet moves, hot-pink snails.",
+      "typography": "Figtree (unchanged); gradient wordmark",
+      "palette": [
+        "#f3e8ff",
+        "#cfd6e8",
+        "#7a5cff",
+        "#ff2f8e",
+        "#1d1b3a"
+      ],
+      "traits": [
+        "One colour = legal moves",
+        "One colour = snails"
+      ],
+      "source": "chrome.html"
+    },
+    {
+      "id": "candy",
+      "name": "Glitter Candy",
+      "concept": "Lemonade background, tangerine squares with a little sparkle, sky-blue moves, cherry snails.",
+      "typography": "Figtree (unchanged); gradient wordmark",
+      "palette": [
+        "#fff1a6",
+        "#ffb347",
+        "#00b8ff",
+        "#ff1f62",
+        "#3a1500"
+      ],
+      "traits": [
+        "One colour = legal moves",
+        "One colour = snails"
+      ],
+      "source": "candy.html"
+    },
+    {
+      "id": "nightcore",
+      "name": "Nightcore",
+      "concept": "Deep purple night, lavender board, mint moves, neon-pink snails.",
+      "typography": "Figtree (unchanged); gradient wordmark",
+      "palette": [
+        "#170a33",
+        "#f1e6ff",
+        "#b28bff",
+        "#00ffd1",
+        "#ff3fa4"
+      ],
+      "traits": [
+        "One colour = legal moves",
+        "One colour = snails"
+      ],
+      "source": "nightcore.html"
+    }
+  ]
+}
