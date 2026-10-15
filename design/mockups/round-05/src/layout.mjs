@@ -85,7 +85,7 @@ export const DEFAULT_VIEW = {
   yourTurn: true,
 };
 
-export function render({ state = 'idle', legal = [], view = DEFAULT_VIEW } = {}) {
+export function render({ state = 'idle', legal = [], view = DEFAULT_VIEW, boardCss = '' } = {}) {
   const moving = state === 'snails' || view.dots.snailsMoving;
   const selected = state === 'selected' ? 'c4' : null;
   const dw = state === 'snails' ? { done: 3, active: -1 } : view.dots.w;
@@ -203,6 +203,7 @@ button{font:inherit;color:inherit;border:0;background:none}
 .sheet li b{color:var(--ink);font-weight:800}
 .sheet li::before{counter-increment:r;content:counter(r);position:absolute;left:0;top:9px;width:24px;height:24px;border-radius:6px;background:var(--ink);color:#fff;font-size:13px;font-weight:800;display:grid;place-items:center}
 .done{width:100%;height:54px;margin-top:12px;border-radius:12px;background:var(--ink);color:#fff;font-weight:800;font-size:16px}
+${boardCss}
 </style></head>
 <body><main class="app${view.slimed ? ' slimed-world' : ''}">
   <header class="appbar"><button class="ib" aria-label="Menu">${icon.menu}</button>

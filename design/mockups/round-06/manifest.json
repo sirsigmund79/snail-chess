@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "lang": "en",
+  "project": "Immortal Snail Chess",
+  "round": "06",
+  "nativeViewport": "390x844",
+  "brief": "Board surface options for the round-05 layout, each in the busiest state: your bishop on c4 is selected (blue = legal squares) while both snails and their next squares (coral) are on the board.",
+  "candidates": [
+    {
+      "id": "hatch",
+      "name": "Current: hatched",
+      "concept": "Round 05 as-is, for comparison.",
+      "typography": "Figtree (unchanged)",
+      "palette": [
+        "#ffffff",
+        "#111111",
+        "#2e9bff",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "Same layout as round 05",
+        "Blue = legal, coral = snail"
+      ],
+      "source": "hatch.html",
+      "baseline": true
+    },
+    {
+      "id": "whisper",
+      "name": "Whisper hatch",
+      "concept": "Keeps the Really Bad Chess hatch, but finer, wider-spaced and at 18% ink so it reads as texture, not stripes.",
+      "typography": "Figtree (unchanged)",
+      "palette": [
+        "#ffffff",
+        "#d9d9d9",
+        "#2e9bff",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "Same layout as round 05",
+        "Blue = legal, coral = snail"
+      ],
+      "source": "whisper.html"
+    },
+    {
+      "id": "paper-grey",
+      "name": "Paper grey",
+      "concept": "Flat white and a soft neutral grey. The quietest option; snails and moves do all the talking.",
+      "typography": "Figtree (unchanged)",
+      "palette": [
+        "#ffffff",
+        "#e3e3e3",
+        "#2e9bff",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "Same layout as round 05",
+        "Blue = legal, coral = snail"
+      ],
+      "source": "paper-grey.html"
+    },
+    {
+      "id": "dots",
+      "name": "Dot grid",
+      "concept": "Dark squares carry a sparse dot pattern instead of lines: still printed-paper texture, far less movement.",
+      "typography": "Figtree (unchanged)",
+      "palette": [
+        "#ffffff",
+        "#ececec",
+        "#2e9bff",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "Same layout as round 05",
+        "Blue = legal, coral = snail"
+      ],
+      "source": "dots.html"
+    },
+    {
+      "id": "stone",
+      "name": "Warm stone",
+      "concept": "Cream and pebble: warmer, still neutral enough that coral and blue pop.",
+      "typography": "Figtree (unchanged)",
+      "palette": [
+        "#f7f4ee",
+        "#d8d1c4",
+        "#2e9bff",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "Same layout as round 05",
+        "Blue = legal, coral = snail"
+      ],
+      "source": "stone.html"
+    },
+    {
+      "id": "slate",
+      "name": "Cool slate",
+      "concept": "Blue-grey board; legal moves switch to a brighter cyan-blue so they still stand apart.",
+      "typography": "Figtree (unchanged)",
+      "palette": [
+        "#eef1f5",
+        "#c5cdd8",
+        "#1fa3ff",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "Same layout as round 05",
+        "Blue = legal, coral = snail"
+      ],
+      "source": "slate.html"
+    },
+    {
+      "id": "sage",
+      "name": "Sage",
+      "concept": "A muted green board in the chess.com spirit, desaturated so it never fights the coral.",
+      "typography": "Figtree (unchanged)",
+      "palette": [
+        "#f1f4ec",
+        "#b8c7ae",
+        "#2e9bff",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "Same layout as round 05",
+        "Blue = legal, coral = snail"
+      ],
+      "source": "sage.html"
+    },
+    {
+      "id": "ink",
+      "name": "Ink outline",
+      "concept": "All squares white; dark squares are marked by a thin inner frame only. Maximum calm, most Gage-like.",
+      "typography": "Figtree (unchanged)",
+      "palette": [
+        "#ffffff",
+        "#111111",
+        "#2e9bff",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "Same layout as round 05",
+        "Blue = legal, coral = snail"
+      ],
+      "source": "ink.html"
+    }
+  ]
+}
