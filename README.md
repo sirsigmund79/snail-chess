@@ -4,26 +4,33 @@ Standard chess plus two immortal snails. Every 3 full moves (6 plies) each snail
 toward the enemy king, crushing whatever is on that square. If a snail lands on a king, that king's
 side loses.
 
-Everything runs in the browser (static site, no server): the rules engine, a snail-aware search in
-a Web Worker, and Stockfish 18 (lite, single-threaded WASM, ~7 MB) in another worker.
+Bot and same-phone games run entirely in the browser: the rules engine, a snail-aware search in a
+Web Worker, and Stockfish 18 (lite, single-threaded WASM, ~7 MB) in another worker. Online games
+with a friend go through a small Cloudflare Worker with one Durable Object per room.
 
 ## Quick start
 
 ```bash
 npm install          # also copies Stockfish into public/stockfish/
 npm run dev          # http://localhost:5173
+npm run dev:worker   # online rooms in dev: run alongside `npm run dev` (needs one `npm run build` first)
 npm test             # engine + bot trap suites (pure TS search)
 STOCKFISH=1 npm test # also run the trap suites through Stockfish + snail rescoring
 npm run selfplay -- --games 20             # Medium vs Hard self-play report
 npm run build && npm run preview           # production build
 npx tsx scripts/smoke.ts                   # browser smoke test against preview (Chromium)
+npm run build && npx wrangler dev          # the real Worker + rooms at http://localhost:8787
+npx tsx scripts/online-smoke.ts            # two-browser online test against wrangler dev
 ```
 
 ## Deploy (Cloudflare Workers → chess.stbinf.com)
 
-The site is a static Vite build, served as Workers static assets. `wrangler.jsonc` points wrangler
-at `dist/` and turns on single-page-app fallback, so `/game/ABC123` loads the app. The Stockfish
-lite WASM is 7.3 MB, under the 25 MiB per-file limit.
+The app is a static Vite build, served as Workers static assets, plus a Worker (`worker/`) that
+only runs for `/api/*`. `wrangler.jsonc` points wrangler at `dist/`, turns on single-page-app
+fallback (so `/game/ABC123` loads the app), and binds the `Room` Durable Object. The first deploy
+creates the Durable Object class from the `v1` migration; nothing needs setting up by hand. The
+Stockfish lite WASM is 7.3 MB, under the 25 MiB per-file limit. `public/_headers` lets browsers
+cache the fingerprinted `/assets/*` forever and Stockfish for a day.
 
 **Workers Builds settings** (Workers & Pages → snail-chess → Settings → Build):
 - **Production branch:** `main`.
@@ -111,11 +118,14 @@ There's a hidden **Bubblegum Bass** theme, unlocked by a `hyper` URL parameter (
 
 ## Analytics (PostHog)
 
-Page views plus two events, using PostHog's free tier:
+Page views plus a few events, using PostHog's free tier:
 - `game_started`: sent on a game's first move.
   - Properties: `opponent` (bot or friend), `difficulty`, `player_color`, `theme`.
 - `game_ended`: sent when the game finishes.
   - Properties: as above, plus `result` (slimed, checkmate or draw), `winner`, `player_won` and `moves`.
+- `online_room_created`, `online_invite_shared`: someone made a room / tapped the invite button.
+
+Online games have `opponent: online` and are counted once per player (two `game_started` per game).
 
 Autocapture and session recording are off, and PostHog stores nothing in cookies or localStorage
 (memory persistence). The library is only downloaded when a key is configured.
@@ -149,10 +159,24 @@ screen falls back to Bangers.
 The bot can think during playback but only moves once the board has settled. Click the board or
 press Space to skip. See `src/ui/usePlayback.ts`.
 
+## Online play
+
+Menu → **Play a friend online** creates a room (`/game/ABC234`) and shows an invite link. The
+first person in the room plays White, the second Black, and anyone after that watches. A refresh or
+reconnect keeps your seat (a random player id in `localStorage`). After the game, **Rematch** swaps
+colours.
+
+- `worker/index.ts`: routes `/api/room/:code/ws` to that room's Durable Object (same-origin only).
+- `worker/room.ts`: the room. It is authoritative: it replays moves through the same engine and
+  rejects illegal, out-of-turn or stale moves, so a client can't cheat. It uses the WebSocket
+  Hibernation API, so a room sleeps between moves and isn't billed while it waits. Keepalive pings
+  are answered without waking it. A room deletes itself a day after everyone has left.
+- `src/network/protocol.ts`: the wire messages (`hello`, `move`, `rematch` → `state`).
+- `src/ui/useOnlineGame.ts`: the client. It plays your move straight away, rebuilds from the
+  server's move list (animating only new moves), and reconnects with backoff.
+
 ## Not yet done
 
-- Online multiplayer: `/game/:roomId` and the `GameTransport` interface are in place. A PartyKit
-  room server that relays moves and broadcasts authoritative snapshots after each tick is next.
 - A custom Stockfish build with native snails (spec Part 2, Method 2).
 
 ## License

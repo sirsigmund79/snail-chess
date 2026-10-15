@@ -100,7 +100,7 @@ export function SettingsSheet({
         Start new game
       </button>
       <button className="btn ghost wide" onClick={onRoom}>
-        Play online (coming soon)
+        Play a friend online
       </button>
     </Sheet>
   );
@@ -155,7 +155,18 @@ export interface ResultInfo {
  * Centred end-of-game card. One action, New game, which opens the options menu. Tap outside the
  * card (or press Escape) to dismiss it and look at the final position.
  */
-export function ResultCard({ info, onNew, onDismiss }: { info: ResultInfo; onNew: () => void; onDismiss: () => void }) {
+export function ResultCard({
+  info,
+  action = 'New game',
+  onNew,
+  onDismiss,
+}: {
+  info: ResultInfo;
+  /** Button label: "New game", or "Rematch" in an online room. */
+  action?: string;
+  onNew: () => void;
+  onDismiss: () => void;
+}) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onDismiss();
     window.addEventListener('keydown', onKey);
@@ -172,7 +183,7 @@ export function ResultCard({ info, onNew, onDismiss }: { info: ResultInfo; onNew
         <p>{info.line}</p>
         <p className="meta">{info.meta}</p>
         <button className="btn primary wide" onClick={onNew}>
-          New game
+          {action}
         </button>
         <p className="credits">
           <a href="https://stbinf.com/" target="_blank" rel="noopener noreferrer">

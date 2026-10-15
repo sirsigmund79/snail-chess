@@ -1,0 +1,7 @@
+# Vite fingerprints everything in /assets/, so browsers can keep it forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Stockfish (7 MB) isn't fingerprinted; cache it for a day, then revalidate.
+/stockfish/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800

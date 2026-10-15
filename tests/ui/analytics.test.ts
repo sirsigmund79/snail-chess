@@ -40,3 +40,13 @@ describe('analytics game events', () => {
     expect(ended).not.toHaveProperty('difficulty');
   });
 });
+
+describe('online analytics', () => {
+  it('online games report the player colour and whether they won', () => {
+    const g = createGame({ fen: '4k2r/8/8/8/8/8/8/R3K3 b - - 0 1', snails: { w: 'd7', b: 'h1' }, plyCount: 5 });
+    const done = play(g, 'e8e7');
+    const [, ended] = gameEvents(g, done, { ...ctx, mode: 'online', humanColor: 'b' }, { started: true, ended: false })[0];
+    expect(ended).toMatchObject({ opponent: 'online', player_color: 'black', result: 'slimed', winner: 'white', player_won: false });
+    expect(ended).not.toHaveProperty('difficulty');
+  });
+});

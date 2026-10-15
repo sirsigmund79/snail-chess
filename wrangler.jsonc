@@ -1,12 +1,23 @@
 {
-  // Cloudflare Workers static-assets deploy (used by `npx wrangler deploy` in Workers Builds).
-  // The site is a static Vite build; no Worker script is needed.
-  "$schema": "node_modules/wrangler/config-schema.json",
+  // Cloudflare Workers deploy (used by `npx wrangler deploy` in Workers Builds).
+  // The React app is static assets from dist/; the Worker in worker/ only handles /api/*, which
+  // is the online-play WebSocket. Each room is a Durable Object (worker/room.ts).
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "snail-chess",
+  "main": "./worker/index.ts",
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./dist",
     // Unknown paths (e.g. /game/ABC123) serve index.html so the React router can handle them.
-    "not_found_handling": "single-page-application"
-  }
+    "not_found_handling": "single-page-application",
+    // Only these paths run the Worker; everything else is served as a static asset for free.
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+  },
+  // SQLite-backed Durable Objects (required on the Workers Free plan, recommended on Paid).
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  // Request logs and errors in the dashboard (Workers & Pages → snail-chess → Observability).
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 }
 }

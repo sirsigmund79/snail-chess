@@ -38,7 +38,7 @@ export function track(event: string, props: Record<string, unknown> = {}) {
 }
 
 export interface GameContext {
-  mode: 'bot' | 'hotseat';
+  mode: 'bot' | 'hotseat' | 'online';
   humanColor: Color;
   level: 'easy' | 'medium' | 'hard';
   theme: string;
@@ -64,9 +64,12 @@ export function gameEvents(
   sent: { started: boolean; ended: boolean },
 ): [string, Record<string, unknown>][] {
   const out: [string, Record<string, unknown>][] = [];
+  // A local friend game (one phone) has no "you"; bot and online games do.
+  const personal = ctx.mode !== 'hotseat';
   const base = {
-    opponent: ctx.mode === 'bot' ? 'bot' : 'friend',
-    ...(ctx.mode === 'bot' ? { difficulty: ctx.level, player_color: ctx.humanColor === 'w' ? 'white' : 'black' } : {}),
+    opponent: ctx.mode === 'bot' ? 'bot' : ctx.mode === 'online' ? 'online' : 'friend',
+    ...(ctx.mode === 'bot' ? { difficulty: ctx.level } : {}),
+    ...(personal ? { player_color: ctx.humanColor === 'w' ? 'white' : 'black' } : {}),
     theme: ctx.theme,
   };
   if (!sent.started && prev.history.length === 0 && next.history.length > 0) {
@@ -83,7 +86,7 @@ export function gameEvents(
         result: RESULT[next.gameStatus as Exclude<GameStatus, 'in_progress'>],
         ...(next.drawReason ? { draw_reason: next.drawReason } : {}),
         winner: winner ? (winner === 'w' ? 'white' : 'black') : 'none',
-        ...(ctx.mode === 'bot' && winner ? { player_won: winner === ctx.humanColor } : {}),
+        ...(personal && winner ? { player_won: winner === ctx.humanColor } : {}),
         moves: Math.ceil(next.plyCount / 2),
       },
     ]);

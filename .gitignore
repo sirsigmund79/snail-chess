@@ -13,3 +13,6 @@ fonts-local/
 .env
 .env.local
 .env.*.local
+
+# wrangler dev local state
+.wrangler/

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { track } from '../analytics';
 import { turn } from '../engine/game';
 import type { Color, ImmortalChessState } from '../engine/types';
 import { generateRoomCode } from '../network/roomCode';
@@ -7,6 +8,7 @@ import { MovesSheet, ResultCard, RulesSheet, SettingsSheet, type ResultInfo, typ
 import { SlimedOverlay } from './SlimedOverlay';
 import { SnailBoard } from './SnailBoard';
 import { SnailIcon } from './SnailIcon';
+import type { OnlineGame } from './useOnlineGame';
 import { useSnailGame } from './useSnailGame';
 
 const NAME: Record<Color, string> = { w: 'White', b: 'Black' };
@@ -84,17 +86,21 @@ function MoveStrip({ state, hideLastTick }: { state: ImmortalChessState; hideLas
   );
 }
 
-function resultInfo(state: ImmortalChessState, mode: Settings['mode'], human: Color, level: Settings['level']): ResultInfo {
+/** How the screen talks about the players: a bot game or an online game has a "you". */
+type ViewMode = Settings['mode'] | 'online';
+
+function resultInfo(state: ImmortalChessState, mode: ViewMode, human: Color, level: Settings['level']): ResultInfo {
   const moves = Math.ceil(state.plyCount / 2);
-  const who = (c: Color) => (mode === 'bot' ? (c === human ? 'You' : 'Snailfish') : NAME[c]);
-  const winsLine = (c: Color) => (mode === 'bot' && c === human ? `You beat Snailfish (${LEVEL_NAME[level]})` : `${who(c)} wins`);
+  const personal = mode !== 'hotseat';
+  const who = (c: Color) => (personal ? (c === human ? 'You' : mode === 'bot' ? 'Snailfish' : 'Your friend') : NAME[c]);
+  const winsLine = (c: Color) => (mode === 'bot' && c === human ? `You beat Snailfish (${LEVEL_NAME[level]})` : c === human && personal ? 'You win' : `${who(c)} wins`);
   if (state.gameStatus === 'snail_win_white' || state.gameStatus === 'snail_win_black') {
     const winner = state.winner!;
     const victim = other(winner);
     const crush = state.history[state.history.length - 1]?.tick?.moves.find((m) => m.crushed?.type === 'k');
     const snail = crush?.color ?? winner;
-    const whose = mode === 'bot' && victim === human ? 'your' : `${NAME[victim]}'s`;
-    const title = mode === 'bot' ? (victim === human ? 'Slimed.' : 'You slimed them.') : `${NAME[victim]} got slimed.`;
+    const whose = personal && victim === human ? 'your' : `${NAME[victim]}'s`;
+    const title = personal ? (victim === human ? 'Slimed.' : 'You slimed them.') : `${NAME[victim]} got slimed.`;
     return {
       kind: 'snail',
       title,
@@ -116,16 +122,35 @@ function resultInfo(state: ImmortalChessState, mode: Settings['mode'], human: Co
   return { kind: 'draw', title: 'Draw.', line: `${state.endReason ?? 'Draw'}.`, meta: `${moves} moves` };
 }
 
-export function GameScreen() {
-  const [settings, setSettings] = useState<Settings>({ mode: 'bot', humanColor: 'w', level: 'medium' });
+/**
+ * The game screen. Local games (bot or same phone) run in useSnailGame; pass `online` to drive the
+ * same screen from an online room instead.
+ */
+export function GameScreen({ online }: { online?: OnlineGame }) {
+  const location = useLocation();
+  // Leaving an online room through the menu lands here with the chosen settings.
+  const [settings, setSettings] = useState<Settings>(
+    () => (location.state as { settings?: Settings } | null)?.settings ?? { mode: 'bot', humanColor: 'w', level: 'medium' },
+  );
   const [draft, setDraft] = useState<Settings>(settings);
   const [sheet, setSheet] = useState<null | 'menu' | 'rules' | 'moves'>(null);
   // The end card was dismissed (tapped outside) to look at the final position.
   const [reviewing, setReviewing] = useState(false);
-  const game = useSnailGame(settings);
+  const local = useSnailGame(online ? { ...settings, mode: 'hotseat' } : settings);
+  const game = online ?? local;
   const navigate = useNavigate();
   const { state, playback } = game;
   const over = state.gameStatus !== 'in_progress';
+  const seated = !!online && online.you !== 'spectator';
+  // Spectators see the board like a same-phone game: White and Black, no "you".
+  const mode: ViewMode = online ? (seated ? 'online' : 'hotseat') : settings.mode;
+  const human: Color = online && online.you !== 'spectator' ? online.you : settings.humanColor;
+  const personal = mode !== 'hotseat';
+
+  // A rematch (or any new game) brings the end card back next time.
+  useEffect(() => {
+    if (!over) setReviewing(false);
+  }, [over]);
   const last = state.history[state.history.length - 1];
   const snailsMoving = playback.busy && !!last?.tick;
 
@@ -148,13 +173,17 @@ export function GameScreen() {
   }, [settings]);
 
   const startNew = (next: Settings) => {
+    if (online) {
+      navigate('/', { state: { settings: next } });
+      return;
+    }
     setSettings(next);
     game.reset();
     setReviewing(false);
     setSheet(null);
   };
 
-  const orientation = settings.mode === 'bot' && settings.humanColor === 'b' ? 'black' : 'white';
+  const orientation = personal && human === 'b' ? 'black' : 'white';
   const bottom: Color = orientation === 'white' ? 'w' : 'b';
   const top = other(bottom);
 
@@ -164,15 +193,19 @@ export function GameScreen() {
   const toMove = turn(state);
 
   const player = (c: Color) => {
-    const isHuman = settings.mode === 'bot' && c === settings.humanColor;
-    const isBot = settings.mode === 'bot' && !isHuman;
-    const name = settings.mode === 'bot' ? (isHuman ? 'You' : 'Snailfish') : NAME[c];
-    const sub = settings.mode === 'bot' ? (isHuman ? `(${NAME[c]})` : `(${LEVEL_NAME[settings.level]})`) : '';
-    const avatar = settings.mode === 'bot' ? (isHuman ? 'You' : 'S') : c.toUpperCase();
+    const isHuman = personal && c === human;
+    const isBot = mode === 'bot' && !isHuman;
+    const name = isHuman ? 'You' : mode === 'bot' ? 'Snailfish' : mode === 'online' ? 'Friend' : NAME[c];
+    const sub = isHuman || mode === 'online' ? `(${NAME[c]})` : mode === 'bot' ? `(${LEVEL_NAME[settings.level]})` : '';
+    const avatar = isHuman ? 'You' : mode === 'bot' ? 'S' : mode === 'online' ? 'F' : c.toUpperCase();
     let status = '';
     if (!over && !playback.busy && toMove === c) status = isBot ? (game.thinking ? 'thinking…' : '') : isHuman ? 'your move' : 'to move';
+    if (online) {
+      if (isHuman && online.connection !== 'open') status = 'reconnecting…';
+      else if (!isHuman && online.room && !online.seats[c].online) status = online.seats[c].taken ? 'offline' : 'waiting to join';
+    }
     return (
-      <section className={`pbar${isHuman || (settings.mode === 'hotseat' && c === 'w') ? ' light-av' : ''}`} data-testid={`player-${c}`}>
+      <section className={`pbar${isHuman || (mode === 'hotseat' && c === 'w') ? ' light-av' : ''}`} data-testid={`player-${c}`}>
         <div className="av">{avatar}</div>
         <div className="nm">
           <b>{name}</b> {sub && <span>{sub}</span>}
@@ -234,8 +267,9 @@ export function GameScreen() {
 
       {over && !playback.busy && !reviewing && sheet === null && (
         <ResultCard
-          info={resultInfo(state, settings.mode, settings.humanColor, settings.level)}
-          onNew={openMenu}
+          info={resultInfo(state, mode, human, settings.level)}
+          action={seated ? 'Rematch' : 'New game'}
+          onNew={seated ? online.rematch : openMenu}
           onDismiss={() => setReviewing(true)}
         />
       )}
@@ -247,14 +281,17 @@ export function GameScreen() {
           onChange={setDraft}
           onStart={() => startNew(draft)}
           onClose={() => setSheet(null)}
-          onRoom={() => navigate(`/game/${generateRoomCode()}`)}
+          onRoom={() => {
+            track('online_room_created');
+            navigate(`/game/${generateRoomCode()}`);
+          }}
         />
       )}
       {playback.frame.slimed && (
         <SlimedOverlay
           victim={playback.frame.slimed.victim}
           by={playback.frame.slimed.by}
-          you={settings.mode === 'bot' ? settings.humanColor : null}
+          you={personal ? human : null}
           onSkip={playback.skip}
         />
       )}
