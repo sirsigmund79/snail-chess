@@ -33,7 +33,7 @@ const shot = async (name: string) => {
 };
 const click = (sq: string) => page.click(`[data-square="${sq}"]`);
 const move = async (from: string, to: string) => {
-  await page.waitForFunction(() => !document.querySelector('[data-testid="snail-banner"]'), null, { timeout: 15000 });
+  await page.waitForFunction(() => !document.querySelector('[data-testid="snail-banner"], .dot-snail.moving'), null, { timeout: 15000 });
   await click(from);
   await click(to);
 };
@@ -47,7 +47,16 @@ const newGame = async (opponent: 'Snailfish bot' | 'Friend (same phone)') => {
 };
 const skipPlayback = async () => {
   await page.keyboard.press('Space');
-  await page.waitForFunction(() => !document.querySelector('[data-testid="snail-banner"]'), null, { timeout: 3000 });
+  await page.waitForFunction(() => !document.querySelector('[data-testid="snail-banner"], .dot-snail.moving'), null, { timeout: 3000 });
+};
+
+/** The end card: one button (New game) and the two credits. */
+const checkEndCard = async () => {
+  const buttons = await page.locator('[data-testid="result"] button').allTextContents();
+  if (buttons.join('|') !== 'New game') throw new Error(`end card buttons: ${buttons.join(', ')}`);
+  const links = await page.$$eval('[data-testid="result"] .credits a', (as) => as.map((a) => `${a.textContent}=${a.getAttribute('href')}`));
+  const want = ['Made by Parker Nolan=https://stbinf.com/', 'Inspo from @viper_chess=https://www.instagram.com/viper_chess/'];
+  if (links.join('|') !== want.join('|')) throw new Error(`credits: ${links.join(', ')}`);
 };
 
 // 1. Theme
@@ -70,13 +79,16 @@ await shot('imminent');
 await move('g8', 'f6');
 if ((await snailAt('w')) !== 'a4') throw new Error('white snail moved in the same frame as the move');
 await page.waitForSelector('[data-testid="snail-banner"]', { timeout: 3000 });
+const stir = await page.textContent('[data-testid="snail-banner"]');
+if (stir !== 'The snails stir…') throw new Error(`unexpected first snail banner: ${stir}`);
 if (!(await page.locator('.dot-snail.moving').count())) throw new Error('move-dot snails should turn coral while the snails move');
 await page.waitForFunction(() => document.querySelector('[data-testid="snail-piece-w"]')?.getAttribute('data-snail-square') === 'b5', null, { timeout: 5000 });
 if ((await snailAt('b')) !== 'a5') throw new Error('black snail should step after white');
 await shot('white-step');
+if (await page.locator('[data-testid="snail-banner"]').count()) throw new Error('snail steps should not have their own banner');
 await page.waitForFunction(() => document.querySelector('[data-testid="snail-piece-b"]')?.getAttribute('data-snail-square') === 'b4', null, { timeout: 5000 });
-await page.waitForSelector('[data-testid="snail-banner"]', { state: 'detached', timeout: 5000 });
-if (await page.locator('.dot-snail.moving').count()) throw new Error('snail icons should be back to ink after the snails move');
+// Playback is over once the move-dot snails go back to ink.
+await page.waitForFunction(() => !document.querySelector('.dot-snail.moving'), null, { timeout: 5000 });
 console.log(`snails ok: ${await snailAt('w')} / ${await snailAt('b')} after the first step`);
 
 // 3a. A crush: Black parks a pawn on b5, right where White's snail lands.
@@ -102,22 +114,18 @@ await page.keyboard.press('Space');
 await page.waitForSelector('[data-testid="result"]', { timeout: 5000 });
 const slimedTitle = await page.textContent('[data-testid="result"] h3');
 if (slimedTitle !== 'Black got slimed.') throw new Error(`unexpected result title: ${slimedTitle}`);
+await checkEndCard();
 await shot('slimed-result');
 console.log('slimed ok:', slimedTitle, '·', await page.textContent('[data-testid="result"] p'));
-await page.click('[data-testid="result"] >> text=Rematch');
+// New game opens the options menu; starting from there clears the card.
+await page.click('[data-testid="result"] >> text=New game');
+await page.waitForSelector('.sheet >> text=Start new game');
+await page.click('text=Start new game');
 await page.waitForSelector('[data-testid="result"]', { state: 'detached' });
 
-// 3c. Checkmate: Scholar's mate with the snails on the board.
+// 3c. Checkmate: Scholar's mate with the snails on the board (sheets checked just before the mate).
 for (const [f, t] of [['e2', 'e4'], ['e7', 'e5'], ['f1', 'c4'], ['b8', 'c6'], ['d1', 'h5'], ['g8', 'f6']]) await move(f, t);
 await skipPlayback();
-await move('h5', 'f7');
-await page.waitForSelector('[data-testid="result"]', { timeout: 5000 });
-const mateTitle = await page.textContent('[data-testid="result"] h3');
-if (mateTitle !== 'Checkmate.') throw new Error(`unexpected result title: ${mateTitle}`);
-if (await page.locator('[data-testid="slimed"]').count()) throw new Error('checkmate must not show SLIMED');
-await shot('checkmate');
-console.log('checkmate ok:', await page.textContent('[data-testid="result"] p'));
-await page.click('[data-testid="result"] >> text=Review');
 
 // 4. Sheets
 await page.click('.toolbar >> text=Rules');
@@ -129,6 +137,22 @@ await page.waitForSelector('[data-testid="move-table"]');
 await shot('moves');
 await page.click('text=Back to the board');
 console.log('sheets ok');
+
+await move('h5', 'f7');
+await page.waitForSelector('[data-testid="result"]', { timeout: 5000 });
+const mateTitle = await page.textContent('[data-testid="result"] h3');
+if (mateTitle !== 'Checkmate.') throw new Error(`unexpected result title: ${mateTitle}`);
+if (await page.locator('[data-testid="slimed"]').count()) throw new Error('checkmate must not show SLIMED');
+await checkEndCard();
+await shot('checkmate');
+console.log('checkmate ok:', await page.textContent('[data-testid="result"] p'));
+// Tap outside the card to look at the final position; it stays dismissed.
+await page.mouse.click(195, 790);
+await page.waitForSelector('[data-testid="result"]', { state: 'detached' });
+await page.waitForTimeout(400);
+if (await page.locator('[data-testid="result"]').count()) throw new Error('end card came back after dismissing');
+await shot('checkmate-board');
+console.log('end card dismissed by tapping outside');
 
 // 5. vs bot: the reply to 1.e4 should vary across fresh games.
 const replies: string[] = [];

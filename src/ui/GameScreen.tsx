@@ -120,6 +120,7 @@ export function GameScreen() {
   const [settings, setSettings] = useState<Settings>({ mode: 'bot', humanColor: 'w', level: 'medium' });
   const [draft, setDraft] = useState<Settings>(settings);
   const [sheet, setSheet] = useState<null | 'menu' | 'rules' | 'moves'>(null);
+  // The end card was dismissed (tapped outside) to look at the final position.
   const [reviewing, setReviewing] = useState(false);
   const game = useSnailGame(settings);
   const navigate = useNavigate();
@@ -234,9 +235,8 @@ export function GameScreen() {
       {over && !playback.busy && !reviewing && sheet === null && (
         <ResultCard
           info={resultInfo(state, settings.mode, settings.humanColor, settings.level)}
-          onRematch={() => startNew(settings)}
-          onReview={() => setReviewing(true)}
           onNew={openMenu}
+          onDismiss={() => setReviewing(true)}
         />
       )}
       {sheet === 'rules' && <RulesSheet onClose={() => setSheet(null)} />}

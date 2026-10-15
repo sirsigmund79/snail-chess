@@ -151,21 +151,19 @@ export interface ResultInfo {
   meta: string;
 }
 
-/** Centred end-of-game card, as on chess.com: Rematch first, then Review / New game. */
-export function ResultCard({
-  info,
-  onRematch,
-  onReview,
-  onNew,
-}: {
-  info: ResultInfo;
-  onRematch: () => void;
-  onReview: () => void;
-  onNew: () => void;
-}) {
+/**
+ * Centred end-of-game card. One action, New game, which opens the options menu. Tap outside the
+ * card (or press Escape) to dismiss it and look at the final position.
+ */
+export function ResultCard({ info, onNew, onDismiss }: { info: ResultInfo; onNew: () => void; onDismiss: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onDismiss();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onDismiss]);
   return (
     <>
-      <div className="dim" />
+      <div className="dim" onClick={onDismiss} data-testid="result-dim" />
       <section className="result" role="dialog" aria-label={info.title} data-testid="result">
         <div className={`emblem ${info.kind}`}>
           {info.kind === 'snail' ? <SnailIcon side="b" /> : <span className="emblem-text">{info.kind === 'mate' ? '#' : '½'}</span>}
@@ -173,17 +171,18 @@ export function ResultCard({
         <h3>{info.title}</h3>
         <p>{info.line}</p>
         <p className="meta">{info.meta}</p>
-        <button className="btn primary wide" onClick={onRematch}>
-          Rematch
+        <button className="btn primary wide" onClick={onNew}>
+          New game
         </button>
-        <div className="row">
-          <button className="btn" onClick={onReview}>
-            Review
-          </button>
-          <button className="btn" onClick={onNew}>
-            New game
-          </button>
-        </div>
+        <p className="credits">
+          <a href="https://stbinf.com/" target="_blank" rel="noopener noreferrer">
+            Made by Parker Nolan
+          </a>
+          <span aria-hidden> · </span>
+          <a href="https://www.instagram.com/viper_chess/" target="_blank" rel="noopener noreferrer">
+            Inspo from @viper_chess
+          </a>
+        </p>
       </section>
     </>
   );

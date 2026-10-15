@@ -176,7 +176,10 @@ html[data-theme='bubblegum'] .brand span { background: var(--brand); -webkit-bac
 .result h3 { font-weight: 800; font-size: 28px; line-height: 1.1; margin: 4px 0 0; }
 .result p { font-weight: 700; color: var(--soft); margin: 4px 0 0; }
 .result .meta { font-size: 13px; margin-top: 6px; }
-.result .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.result .credits { margin-top: 12px; font-size: 12px; font-weight: 600; line-height: 1.5; }
+.credits a { color: var(--soft); text-decoration: none; }
+.credits a:hover, .credits a:focus-visible { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.dim { cursor: pointer; }
 
 .room { justify-content: center; align-items: center; text-align: center; gap: 12px; padding: 24px; }
 .room h2 { font-weight: 800; margin: 0; }

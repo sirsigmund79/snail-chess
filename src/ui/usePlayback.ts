@@ -38,7 +38,33 @@ export const TIMING = {
   quietStep: 350,
 };
 
-/** Break a move that triggered a snail tick into separate beats. */
+/** Wording for the warning before the snails move, one per snail move in order, then looping. */
+export const STIR_PHRASES = [
+  'The snails stir…',
+  'The snails are on the move…',
+  'The snails march on…',
+  'The snails creep closer…',
+  'The snails inch forward…',
+  'The snails slither onward…',
+  'The snails press on…',
+  'The snails advance…',
+  'Slow and steady…',
+  "The snails won't stop…",
+  'The snails ooze ahead…',
+  'Here come the snails…',
+  'The snails close in…',
+  'The snails keep coming…',
+  'The snails glide forward…',
+];
+
+/** Phrase for the n-th snail move of the game (ticks happen at plies 6, 12, 18, …). */
+export const stirPhrase = (tickPly: number) => STIR_PHRASES[(Math.max(1, Math.round(tickPly / 6)) - 1) % STIR_PHRASES.length];
+
+/**
+ * Break a move that triggered a snail tick into separate beats: the move lands, a warning
+ * banner, then each snail slides in turn (the slide itself shows where it went). A crush gets its
+ * own banner; a crushed king hands over to the SLIMED finale.
+ */
 export function framesFor(record: MoveRecord, final: ImmortalChessState): Frame[] {
   if (!record.tick || !record.fenBeforeTick) return [];
   const snails: Snails = { w: { ...final.snails.w }, b: { ...final.snails.b } };
@@ -48,17 +74,12 @@ export function framesFor(record: MoveRecord, final: ImmortalChessState): Frame[
   let fen = record.fenBeforeTick;
   let current = snails;
   frames.push({ fen, snails: current, hold: TIMING.afterMove });
-  frames.push({ fen, snails: current, imminent: true, banner: { text: 'The snails stir…', tone: 'info' }, hold: TIMING.stir });
+  frames.push({ fen, snails: current, imminent: true, banner: { text: stirPhrase(record.tick.ply), tone: 'info' }, hold: TIMING.stir });
 
   for (const sm of record.tick.moves) {
     current = { ...current, [sm.color]: { ...current[sm.color], square: sm.to } };
     // Slide onto the square while the victim is still standing there…
-    frames.push({
-      fen,
-      snails: current,
-      banner: { text: `${NAME[sm.color]}'s snail creeps ${sm.from} → ${sm.to}`, tone: 'info' },
-      hold: sm.crushed ? TIMING.slide : TIMING.slide + TIMING.quietStep,
-    });
+    frames.push({ fen, snails: current, hold: sm.crushed ? TIMING.slide : TIMING.slide + TIMING.quietStep });
     if (sm.crushed) {
       // …then crush it.
       const p = parseFen(fen);

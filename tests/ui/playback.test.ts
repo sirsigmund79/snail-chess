@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyMove, createGame } from '../../src/engine';
-import { framesFor } from '../../src/ui/usePlayback';
+import { framesFor, STIR_PHRASES, stirPhrase } from '../../src/ui/usePlayback';
 
 describe('snail playback frames', () => {
   it('ends a king crush with the SLIMED finale instead of a banner', () => {
@@ -23,5 +23,26 @@ describe('snail playback frames', () => {
     const frames = framesFor(after.history[0], after);
     expect(frames.some((f) => f.slimed)).toBe(false);
     expect(frames.some((f) => f.banner?.text.includes("crushed Black's pawn"))).toBe(true);
+  });
+});
+
+describe('snail warning banner', () => {
+  it('cycles through the approved phrases, one per snail move, then loops', () => {
+    expect(STIR_PHRASES).toHaveLength(15);
+    expect(stirPhrase(6)).toBe('The snails stir…');
+    expect(stirPhrase(12)).toBe('The snails are on the move…');
+    expect(stirPhrase(18)).toBe('The snails march on…');
+    expect(stirPhrase(90)).toBe('The snails glide forward…');
+    expect(stirPhrase(96)).toBe('The snails stir…');
+  });
+
+  it("no longer announces each snail's step", () => {
+    const g = createGame();
+    let s = g;
+    for (const [from, to] of [['e2', 'e4'], ['e7', 'e5'], ['g1', 'f3'], ['b8', 'c6'], ['f1', 'c4'], ['g8', 'f6']] as const) {
+      s = applyMove(s, { from, to });
+    }
+    const banners = framesFor(s.history[5], s).flatMap((f) => (f.banner ? [f.banner.text] : []));
+    expect(banners).toEqual(['The snails stir…']);
   });
 });

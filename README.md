@@ -19,8 +19,24 @@ npm run build && npm run preview           # production build
 npx tsx scripts/smoke.ts                   # browser smoke test against preview (Chromium)
 ```
 
-Deploy: `dist/` is a static site (Cloudflare Pages / Vercel). `public/_redirects` gives Pages its
-SPA fallback.
+## Deploy (Cloudflare Pages → chess.stbinf.com)
+
+`dist/` is a static site. The Stockfish lite WASM is 7.3 MB, under the 25 MB per-file limit, and
+`public/_redirects` gives Pages its SPA fallback.
+
+1. **Create the project:** in the Cloudflare dashboard, go to **Workers & Pages → Create application →
+   Pages → Import an existing Git repository** and choose `sirsigmund79/snail-chess`.
+2. **Build settings:**
+   - **Production branch:** `main` (or `feat/snail-chess-mvp`).
+   - **Framework preset:** None.
+   - **Build command:** `npm run build`.
+   - **Build output directory:** `dist`.
+   - **Environment variable:** `NODE_VERSION=22`.
+3. **Deploy:** Save and Deploy. The site appears at `<project>.pages.dev`, and every push to the
+   production branch redeploys it.
+4. **Custom domain:** under **Custom domains → Set up a custom domain**, enter `chess.stbinf.com`.
+   With stbinf.com's DNS on Cloudflare, the CNAME and certificate are created automatically.
+   Otherwise, add `CNAME chess → <project>.pages.dev` at your DNS host.
 
 ## Rules as implemented
 
