@@ -14,13 +14,19 @@ export type ClientMessage =
   /** `ply` is the number of moves the client had seen, so stale moves are dropped. */
   | { type: 'move'; ply: number; move: MoveInput }
   /** Only once the game is over: start a new game with colours swapped. */
-  | { type: 'rematch'; game: number };
+  | { type: 'rematch'; game: number }
+  /** Give up the current game. */
+  | { type: 'resign'; game: number }
+  /** Before anyone else has joined: switch to the other colour. */
+  | { type: 'seat'; color: Color };
 
 export interface RoomState {
   type: 'state';
   /** Increments on every rematch. */
   game: number;
   moves: MoveInput[];
+  /** Who resigned this game, if anyone. */
+  resigned: Color | null;
   you: Seat;
   /** Whether each seat is taken, and whether that player is connected right now. */
   seats: Record<Color, { taken: boolean; online: boolean }>;

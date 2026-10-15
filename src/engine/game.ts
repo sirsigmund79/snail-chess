@@ -222,6 +222,17 @@ function epStillValid(p: ReturnType<typeof parseFen>, snails: { w: SnailState; b
   return pawn?.type === 'p' && pawn.color === (r === 2 ? 'w' : 'b');
 }
 
+/** `color` gives up: the other side wins. A finished game is returned unchanged. */
+export function resign(state: ImmortalChessState, color: Color): ImmortalChessState {
+  if (state.gameStatus !== 'in_progress') return state;
+  return {
+    ...state,
+    gameStatus: 'resigned',
+    winner: opposite(color),
+    endReason: `${color === 'w' ? 'White' : 'Black'} resigned`,
+  };
+}
+
 /** Compact snapshot: `<fen> [S:<white snail>,<black snail>] [P:<plyCount>]`. */
 export function toSnapshot(state: ImmortalChessState): string {
   return `${state.fen} [S:${state.snails.w.square},${state.snails.b.square}] [P:${state.plyCount}]`;

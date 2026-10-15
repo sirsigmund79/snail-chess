@@ -174,3 +174,14 @@ describe('engineFen (Stockfish input)', () => {
     expect(engineFen(g.fen, g.snails)!.split(' ')[0]).toBe('k6r/8/8/8/N7/4N3/4P3/R3K3');
   });
 });
+
+describe('resign', () => {
+  it('ends the game for the other side and blocks further moves', async () => {
+    const { resign, applyMove: apply, IllegalMoveError } = await import('../../src/engine/game');
+    const g = apply(createGame(), { from: 'e2', to: 'e4' });
+    const r = resign(g, 'b');
+    expect(r).toMatchObject({ gameStatus: 'resigned', winner: 'w', endReason: 'Black resigned', plyCount: 1 });
+    expect(() => apply(r, { from: 'e7', to: 'e5' })).toThrow(IllegalMoveError);
+    expect(resign(r, 'w')).toBe(r);
+  });
+});

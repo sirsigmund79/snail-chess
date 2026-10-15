@@ -50,3 +50,13 @@ describe('online analytics', () => {
     expect(ended).not.toHaveProperty('difficulty');
   });
 });
+
+describe('resign analytics', () => {
+  it('reports a resignation as the result', async () => {
+    const { resign } = await import('../../src/engine/game');
+    const g = play(createGame(), 'e2e4');
+    const [[event, props]] = gameEvents(g, resign(g, 'w'), ctx, { started: true, ended: false });
+    expect(event).toBe('game_ended');
+    expect(props).toMatchObject({ result: 'resigned', winner: 'black', player_won: false });
+  });
+});

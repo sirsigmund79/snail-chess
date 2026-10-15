@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BotClient } from '../bot/botClient';
 import type { Level } from '../bot/hybrid';
-import { applyMove, createGame, IllegalMoveError, turn } from '../engine/game';
+import { applyMove, createGame, IllegalMoveError, resign, turn } from '../engine/game';
 import type { Color, ImmortalChessState, MoveInput } from '../engine/types';
 import { gameEvents, track } from '../analytics';
 import { ACTIVE_THEME } from './theme';
@@ -100,6 +100,15 @@ export function useSnailGame(settings: GameSettings) {
     setBotError(null);
   }, []);
 
+  /** Against the bot you resign; on one phone, the side to move does. */
+  const resignGame = useCallback(() => {
+    setStack((s) => {
+      const top = s[s.length - 1];
+      if (top.gameStatus !== 'in_progress') return s;
+      return [...s, resign(top, settings.mode === 'bot' ? settings.humanColor : turn(top))];
+    });
+  }, [settings.mode, settings.humanColor]);
+
   const undo = useCallback(() => {
     setStack((s) => {
       if (s.length <= 1) return s;
@@ -112,5 +121,5 @@ export function useSnailGame(settings: GameSettings) {
     });
   }, [settings.mode, settings.humanColor]);
 
-  return { state, play, reset, playback, undo, thinking, botError, isBotTurn, canUndo: stack.length > 1 };
+  return { state, play, reset, playback, undo, resign: resignGame, thinking, botError, isBotTurn, canUndo: stack.length > 1 };
 }

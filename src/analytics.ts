@@ -49,6 +49,7 @@ const RESULT: Record<Exclude<GameStatus, 'in_progress'>, string> = {
   snail_win_black: 'slimed',
   checkmate: 'checkmate',
   draw: 'draw',
+  resigned: 'resigned',
 };
 
 /**

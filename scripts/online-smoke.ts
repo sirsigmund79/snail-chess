@@ -1,7 +1,7 @@
 /**
  * Two-browser online smoke test against `npm run build && npx wrangler dev` (default
- * http://localhost:8787): create a room, join from a second browser, play, reload mid-game (keeps
- * the seat), finish with a checkmate, rematch (colours swap), and a third browser spectates.
+ * http://localhost:8787): create a room (host picks Black), join from a second browser, play, reload mid-game (keeps
+ * the seat), finish with a checkmate, rematch (colours swap), resign, and a third browser spectates.
  *
  *   npx tsx scripts/online-smoke.ts [url]
  */
@@ -37,32 +37,37 @@ await host.goto(base);
 await host.click('button[aria-label="Menu"]');
 await host.click('text=Play a friend online');
 await host.waitForSelector('text=Send this link to a friend');
+await host.click('.room .seg >> text=Black');
+await host.waitForSelector('.room .seg button.on:has-text("Black")');
 await host.screenshot({ path: `${dir}/online-waiting.png` });
 const roomUrl = host.url();
 console.log('room', roomUrl);
 
 const guest = await open();
 await guest.goto(roomUrl);
+// The host picked Black, so the guest is White.
+const W = guest;
+const B = host;
 await guest.waitForSelector('[data-testid="player-w"]');
 await host.waitForSelector('[data-testid="player-w"]');
 console.log('host bars', await names(host));
 console.log('guest bars', await names(guest));
 
-await move(host, 'e2', 'e4');
-await waitMoves(guest, 1);
-await move(guest, 'e7', 'e5');
-await waitMoves(host, 2);
+await move(W, 'e2', 'e4');
+await waitMoves(B, 1);
+await move(B, 'e7', 'e5');
+await waitMoves(W, 2);
 
 // Guest reloads mid-game: same seat, same position.
-await guest.reload();
-await guest.waitForSelector('[data-testid="player-w"]');
-await waitMoves(guest, 2);
-await move(host, 'g1', 'f3');
-await waitMoves(guest, 3);
-await move(guest, 'b8', 'c6');
-await move(host, 'f1', 'c4');
-await move(guest, 'g8', 'f6'); // 6th ply: snails move
-await waitMoves(host, 6);
+await B.reload();
+await B.waitForSelector('[data-testid="player-w"]');
+await waitMoves(B, 2);
+await move(W, 'g1', 'f3');
+await waitMoves(B, 3);
+await move(B, 'b8', 'c6');
+await move(W, 'f1', 'c4');
+await move(B, 'g8', 'f6'); // 6th ply: snails move
+await waitMoves(W, 6);
 await settle(host);
 await host.screenshot({ path: `${dir}/online-host-after-tick.png` });
 await guest.screenshot({ path: `${dir}/online-guest-after-tick.png` });
@@ -74,24 +79,24 @@ await waitMoves(spec, 6);
 console.log('spectator bars', await names(spec));
 
 // Out-of-turn moves are refused by the board (and would be by the server).
-await guest.click('[data-square="d7"]');
-await guest.click('[data-square="d5"]');
-await guest.waitForTimeout(500);
-if ((await moveCount(guest)) !== 6) throw new Error('guest moved out of turn');
+await B.click('[data-square="d7"]');
+await B.click('[data-square="d5"]');
+await B.waitForTimeout(500);
+if ((await moveCount(B)) !== 6) throw new Error('Black moved out of turn');
 
 // Scholar's mate: Qxf7#.
-await move(host, 'd1', 'e2');
-await move(guest, 'a7', 'a6');
-await move(host, 'c4', 'f7'); // Bxf7+
-await move(guest, 'e8', 'f7');
-await waitMoves(host, 10);
-await move(host, 'f3', 'g5');
-await move(guest, 'f7', 'g8');
-await move(host, 'e2', 'c4');
-await move(guest, 'd7', 'd5');
-await move(host, 'c4', 'd5');
-await move(guest, 'c8', 'e6');
-await move(host, 'd5', 'e6'); // Qxe6# — or close; finish however it ends
+await move(W, 'd1', 'e2');
+await move(B, 'a7', 'a6');
+await move(W, 'c4', 'f7'); // Bxf7+
+await move(B, 'e8', 'f7');
+await waitMoves(W, 10);
+await move(W, 'f3', 'g5');
+await move(B, 'f7', 'g8');
+await move(W, 'e2', 'c4');
+await move(B, 'd7', 'd5');
+await move(W, 'c4', 'd5');
+await move(B, 'c8', 'e6');
+await move(W, 'd5', 'e6'); // Qxe6# — or close; finish however it ends
 const over = await host
   .waitForSelector('[data-testid="result"]', { timeout: 8000 })
   .then(() => true)
@@ -103,12 +108,23 @@ if (over) {
   const label = await guest.locator('[data-testid="result"] button').textContent();
   console.log('result title host:', await host.locator('[data-testid="result"] h3').textContent(), '| guest:', await guest.locator('[data-testid="result"] h3').textContent(), '| button:', label);
   await guest.click('[data-testid="result"] button');
-  await waitMoves(host, 0);
-  await waitMoves(guest, 0);
+  await waitMoves(W, 0);
+  await waitMoves(B, 0);
   console.log('after rematch host bars', await names(host));
   console.log('after rematch guest bars', await names(guest));
-  await move(guest, 'd2', 'd4'); // guest is White now
-  await waitMoves(host, 1);
+  await move(B, 'd2', 'd4'); // colours swapped: the host is White now
+  await waitMoves(W, 1);
+
+  // Resign (the guest, now Black), with the confirm sheet.
+  await W.click('.toolbar >> text=Resign');
+  await W.click('.sheet button.primary');
+  await W.waitForSelector('[data-testid="result"]');
+  await B.waitForSelector('[data-testid="result"]');
+  console.log('resign titles:', await W.locator('[data-testid="result"] h3').textContent(), '|', await B.locator('[data-testid="result"] h3').textContent());
+  await B.screenshot({ path: `${dir}/online-resigned.png` });
+  await B.click('[data-testid="result"] button');
+  await waitMoves(W, 0);
+  console.log('after resign rematch W bars', await names(W));
   await host.screenshot({ path: `${dir}/online-rematch-host.png` });
 }
 

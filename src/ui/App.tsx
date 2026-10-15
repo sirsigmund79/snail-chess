@@ -62,10 +62,20 @@ function OnlineRoom({ roomId }: { roomId: string }) {
     return (
       <RoomMessage title={`Room ${roomId}`}>
         <p className="muted">
-          Send this link to a friend. You’ll play {NAME[you]}.
+          Send this link to a friend.
           <br />
           The game starts when they open it.
         </p>
+        <div className="field">
+          <span className="field-label">You play</span>
+          <div className="seg" role="radiogroup" aria-label="You play">
+            {(['w', 'b'] as const).map((c) => (
+              <button key={c} role="radio" aria-checked={you === c} className={you === c ? 'on' : ''} onClick={() => online.chooseColor(c)}>
+                {NAME[c]}
+              </button>
+            ))}
+          </div>
+        </div>
         <InviteButton />
         <Link className="btn ghost" to="/">
           Back to the game

@@ -8,7 +8,7 @@
  */
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './index';
-import { applyMove, createGame, IllegalMoveError } from '../src/engine/game';
+import { applyMove, createGame, IllegalMoveError, resign } from '../src/engine/game';
 import type { Color, ImmortalChessState, MoveInput } from '../src/engine/types';
 import { LIMITS, type ClientMessage, type RoomState, type Seat, type ServerMessage } from '../src/network/protocol';
 
@@ -25,6 +25,7 @@ interface Stored {
   seats: Partial<Record<Color, string>>;
   game: number;
   moves: MoveInput[];
+  resigned?: Color;
 }
 
 export class Room extends DurableObject<Env> {
@@ -37,13 +38,14 @@ export class Room extends DurableObject<Env> {
     // Keepalive pings are answered without waking the object.
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
     ctx.blockConcurrencyWhile(async () => {
-      const [seats, game, moves, state] = await Promise.all([
+      const [seats, game, moves, state, resigned] = await Promise.all([
         ctx.storage.get<Stored['seats']>('seats'),
         ctx.storage.get<number>('game'),
         ctx.storage.get<MoveInput[]>('moves'),
         ctx.storage.get<ImmortalChessState>('state'),
+        ctx.storage.get<Color>('resigned'),
       ]);
-      this.data = { seats: seats ?? {}, game: game ?? 0, moves: moves ?? [] };
+      this.data = { seats: seats ?? {}, game: game ?? 0, moves: moves ?? [], ...(resigned ? { resigned } : {}) };
       if (state && state.plyCount === this.data.moves.length) this.state = state;
     });
   }
@@ -95,6 +97,28 @@ export class Room extends DurableObject<Env> {
       return this.broadcast();
     }
 
+    if (msg.type === 'resign') {
+      const seat = this.seatOf(att.playerId);
+      if (seat === 'spectator' || msg.game !== this.data.game || this.current().gameStatus !== 'in_progress') {
+        return this.send(ws, this.stateFor(ws));
+      }
+      this.data.resigned = seat;
+      this.state = resign(this.current(), seat);
+      await this.ctx.storage.put({ resigned: seat, state: this.state });
+      return this.broadcast();
+    }
+
+    if (msg.type === 'seat') {
+      // Only the host, before anyone else has taken a seat or a move has been played.
+      const seat = this.seatOf(att.playerId);
+      const want = msg.color;
+      if ((want === 'w' || want === 'b') && seat !== 'spectator' && seat !== want && !this.data.seats[want] && this.data.moves.length === 0) {
+        this.data.seats = { [want]: att.playerId };
+        await this.ctx.storage.put('seats', this.data.seats);
+      }
+      return this.broadcast();
+    }
+
     if (msg.type === 'rematch') {
       const seat = this.seatOf(att.playerId);
       if (seat === 'spectator' || msg.game !== this.data.game || this.current().gameStatus === 'in_progress') {
@@ -104,7 +128,7 @@ export class Room extends DurableObject<Env> {
       this.data = { seats: { w: b, b: w }, game: this.data.game + 1, moves: [] };
       this.state = null;
       await this.ctx.storage.put({ seats: this.data.seats, game: this.data.game, moves: [] });
-      await this.ctx.storage.delete('state');
+      await this.ctx.storage.delete(['state', 'resigned']);
       return this.broadcast();
     }
   }
@@ -139,7 +163,7 @@ export class Room extends DurableObject<Env> {
     if (!this.state) {
       let s = createGame();
       for (const m of this.data.moves) s = applyMove(s, m);
-      this.state = s;
+      this.state = this.data.resigned ? resign(s, this.data.resigned) : s;
     }
     return this.state;
   }
@@ -172,6 +196,7 @@ export class Room extends DurableObject<Env> {
       type: 'state',
       game: this.data.game,
       moves: this.data.moves,
+      resigned: this.data.resigned ?? null,
       you: att ? this.seatOf(att.playerId) : 'spectator',
       seats: {
         w: { taken: !!this.data.seats.w, online: online.w },

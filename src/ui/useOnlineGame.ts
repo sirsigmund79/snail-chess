@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { applyMove, createGame, IllegalMoveError, turn } from '../engine/game';
+import { applyMove, createGame, IllegalMoveError, resign, turn } from '../engine/game';
 import type { Color, ImmortalChessState, MoveInput } from '../engine/types';
 import { gameEvents, track } from '../analytics';
 import { LIMITS, roomSocketPath, type ClientMessage, type RoomState, type ServerMessage } from '../network/protocol';
@@ -25,13 +25,14 @@ const myId = () => (memoId ??= playerId());
 
 const sameMove = (a: MoveInput, b: MoveInput) => a.from === b.from && a.to === b.to && (a.promotion ?? '') === (b.promotion ?? '');
 
-/** Rebuild from the server's move list, reusing `prev` when it's a prefix (so only new moves animate). */
-function sync(prev: ImmortalChessState, moves: MoveInput[]): ImmortalChessState {
+/** Rebuild from the server's state, reusing `prev` when it's a prefix (so only new moves animate). */
+function sync(prev: ImmortalChessState, moves: MoveInput[], resigned: Color | null): ImmortalChessState {
   const h = prev.history;
-  const prefix = h.length <= moves.length && h.every((m, i) => sameMove(m, moves[i]));
+  const prefix =
+    (prev.gameStatus !== 'resigned' || !!resigned) && h.length <= moves.length && h.every((m, i) => sameMove(m, moves[i]));
   let s = prefix ? prev : createGame();
   for (let i = s.history.length; i < moves.length; i++) s = applyMove(s, moves[i]);
-  return s;
+  return resigned ? resign(s, resigned) : s;
 }
 
 export type Connection = 'connecting' | 'open' | 'reconnecting';
@@ -71,7 +72,7 @@ export function useOnlineGame(roomId: string) {
         setRoom(msg);
         setState((prev) => {
           try {
-            return sync(prev, msg.moves);
+            return sync(prev, msg.moves, msg.resigned);
           } catch {
             return prev;
           }
@@ -157,6 +158,15 @@ export function useOnlineGame(roomId: string) {
 
   const rematch = useCallback(() => send({ type: 'rematch', game: gameNo }), [send, gameNo]);
 
+  /** Give up; shown straight away, confirmed by the server. */
+  const resignGame = useCallback(() => {
+    if (you === 'spectator' || state.gameStatus !== 'in_progress') return;
+    if (send({ type: 'resign', game: gameNo })) setState(resign(state, you));
+  }, [send, gameNo, you, state]);
+
+  /** The host picks a colour while waiting for their friend. */
+  const chooseColor = useCallback((color: Color) => send({ type: 'seat', color }), [send]);
+
   const seats = room?.seats ?? { w: { taken: false, online: false }, b: { taken: false, online: false } };
   const opponent: Color | null = you === 'spectator' ? null : you === 'w' ? 'b' : 'w';
 
@@ -165,6 +175,8 @@ export function useOnlineGame(roomId: string) {
     play,
     playback,
     rematch,
+    resign: resignGame,
+    chooseColor,
     connection,
     /** Null until the server has answered. */
     room,

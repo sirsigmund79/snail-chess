@@ -20,7 +20,8 @@ export type GameStatus =
   | 'checkmate'
   | 'snail_win_white'
   | 'snail_win_black'
-  | 'draw';
+  | 'draw'
+  | 'resigned';
 
 export type DrawReason =
   | 'stalemate'

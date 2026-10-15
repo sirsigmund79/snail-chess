@@ -99,14 +99,45 @@ export function SettingsSheet({
       <button className="btn primary wide" onClick={onStart}>
         Start new game
       </button>
-      <button className="btn ghost wide" onClick={onRoom}>
-        Play a friend online
+      <button className="btn link wide" onClick={onRoom}>
+        <span>
+          Play a friend online
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18M12 3c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9c-2.5-2.6-3.7-5.6-3.7-9s1.2-6.4 3.7-9z" />
+          </svg>
+        </span>
       </button>
     </Sheet>
   );
 }
 
 const NAME: Record<Color, string> = { w: 'White', b: 'Black' };
+
+function FlagIcon() {
+  return (
+    <svg className="emblem-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 21V4" />
+      <path d="M5 4h12l-2.5 4.5L17 13H5" />
+    </svg>
+  );
+}
+
+/** Confirm before resigning, so a stray tap can't end the game. */
+export function ResignSheet({ who, winner, onResign, onClose }: { who: string; winner: string; onResign: () => void; onClose: () => void }) {
+  return (
+    <Sheet label="Resign" onClose={onClose}>
+      <h2 className="sheet-title">{who === 'You' ? 'Resign this game?' : `${who} resigns?`}</h2>
+      <p className="muted">{winner} wins.</p>
+      <button className="btn primary wide" onClick={onResign}>
+        Resign
+      </button>
+      <button className="btn wide" onClick={onClose}>
+        Keep playing
+      </button>
+    </Sheet>
+  );
+}
 
 /** Full move list, with snail steps as their own rows. */
 export function MovesSheet({ state, onClose }: { state: ImmortalChessState; onClose: () => void }) {
@@ -145,7 +176,7 @@ export function MovesSheet({ state, onClose }: { state: ImmortalChessState; onCl
 }
 
 export interface ResultInfo {
-  kind: 'snail' | 'mate' | 'draw';
+  kind: 'snail' | 'mate' | 'draw' | 'resign';
   title: string;
   line: string;
   meta: string;
@@ -177,7 +208,13 @@ export function ResultCard({
       <div className="dim" onClick={onDismiss} data-testid="result-dim" />
       <section className="result" role="dialog" aria-label={info.title} data-testid="result">
         <div className={`emblem ${info.kind}`}>
-          {info.kind === 'snail' ? <SnailIcon side="b" /> : <span className="emblem-text">{info.kind === 'mate' ? '#' : '½'}</span>}
+          {info.kind === 'snail' ? (
+            <SnailIcon side="b" />
+          ) : info.kind === 'resign' ? (
+            <FlagIcon />
+          ) : (
+            <span className="emblem-text">{info.kind === 'mate' ? '#' : '½'}</span>
+          )}
         </div>
         <h3>{info.title}</h3>
         <p>{info.line}</p>

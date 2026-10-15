@@ -4,7 +4,7 @@ import { track } from '../analytics';
 import { turn } from '../engine/game';
 import type { Color, ImmortalChessState } from '../engine/types';
 import { generateRoomCode } from '../network/roomCode';
-import { MovesSheet, ResultCard, RulesSheet, SettingsSheet, type ResultInfo, type Settings } from './Sheets';
+import { MovesSheet, ResignSheet, ResultCard, RulesSheet, SettingsSheet, type ResultInfo, type Settings } from './Sheets';
 import { SlimedOverlay } from './SlimedOverlay';
 import { SnailBoard } from './SnailBoard';
 import { SnailIcon } from './SnailIcon';
@@ -32,6 +32,12 @@ const Icon = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  flag: (
+    <>
+      <path d="M5 21V4" />
+      <path d="M5 4h12l-2.5 4.5L17 13H5" />
+    </>
+  ),
 };
 const Svg = ({ children }: { children: React.ReactNode }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -90,7 +96,8 @@ function MoveStrip({ state, hideLastTick }: { state: ImmortalChessState; hideLas
 type ViewMode = Settings['mode'] | 'online';
 
 function resultInfo(state: ImmortalChessState, mode: ViewMode, human: Color, level: Settings['level']): ResultInfo {
-  const moves = Math.ceil(state.plyCount / 2);
+  const n = Math.ceil(state.plyCount / 2);
+  const moves = `${n} move${n === 1 ? '' : 's'}`;
   const personal = mode !== 'hotseat';
   const who = (c: Color) => (personal ? (c === human ? 'You' : mode === 'bot' ? 'Snailfish' : 'Your friend') : NAME[c]);
   const winsLine = (c: Color) => (mode === 'bot' && c === human ? `You beat Snailfish (${LEVEL_NAME[level]})` : c === human && personal ? 'You win' : `${who(c)} wins`);
@@ -105,7 +112,17 @@ function resultInfo(state: ImmortalChessState, mode: ViewMode, human: Color, lev
       kind: 'snail',
       title,
       line: `${NAME[snail]}'s snail got ${whose} king${crush ? ` on ${crush.to}` : ''}.`,
-      meta: `${winsLine(winner)} · ${moves} moves`,
+      meta: `${winsLine(winner)} · ${moves}`,
+    };
+  }
+  if (state.gameStatus === 'resigned') {
+    const winner = state.winner!;
+    const loser = other(winner);
+    return {
+      kind: 'resign',
+      title: `${loser === human && personal ? 'You' : who(loser)} resigned.`,
+      line: winner === human && personal ? 'You win.' : `${who(winner)} wins.`,
+      meta: `${moves}`,
     };
   }
   if (state.gameStatus === 'checkmate') {
@@ -116,10 +133,10 @@ function resultInfo(state: ImmortalChessState, mode: ViewMode, human: Color, lev
       kind: 'mate',
       title: 'Checkmate.',
       line: exposed ? `${state.endReason}.` : `${who(winner) === 'You' ? 'You win' : `${who(winner)} wins`} with ${last}.`,
-      meta: `${winsLine(winner)} · ${moves} moves`,
+      meta: `${winsLine(winner)} · ${moves}`,
     };
   }
-  return { kind: 'draw', title: 'Draw.', line: `${state.endReason ?? 'Draw'}.`, meta: `${moves} moves` };
+  return { kind: 'draw', title: 'Draw.', line: `${state.endReason ?? 'Draw'}.`, meta: `${moves}` };
 }
 
 /**
@@ -133,7 +150,7 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
     () => (location.state as { settings?: Settings } | null)?.settings ?? { mode: 'bot', humanColor: 'w', level: 'medium' },
   );
   const [draft, setDraft] = useState<Settings>(settings);
-  const [sheet, setSheet] = useState<null | 'menu' | 'rules' | 'moves'>(null);
+  const [sheet, setSheet] = useState<null | 'menu' | 'rules' | 'moves' | 'resign'>(null);
   // The end card was dismissed (tapped outside) to look at the final position.
   const [reviewing, setReviewing] = useState(false);
   const local = useSnailGame(online ? { ...settings, mode: 'hotseat' } : settings);
@@ -260,6 +277,9 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
         <button onClick={game.undo} disabled={!game.canUndo || game.thinking || playback.busy}>
           <Svg>{Icon.undo}</Svg>Undo
         </button>
+        <button onClick={() => setSheet('resign')} disabled={over || (!!online && !seated)}>
+          <Svg>{Icon.flag}</Svg>Resign
+        </button>
         <button onClick={openMenu}>
           <Svg>{Icon.plus}</Svg>New
         </button>
@@ -275,6 +295,17 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
       )}
       {sheet === 'rules' && <RulesSheet onClose={() => setSheet(null)} />}
       {sheet === 'moves' && <MovesSheet state={state} onClose={() => setSheet(null)} />}
+      {sheet === 'resign' && (
+        <ResignSheet
+          who={personal ? 'You' : NAME[toMove]}
+          winner={mode === 'bot' ? 'Snailfish' : mode === 'online' ? 'Your friend' : NAME[other(toMove)]}
+          onResign={() => {
+            game.resign();
+            setSheet(null);
+          }}
+          onClose={() => setSheet(null)}
+        />
+      )}
       {sheet === 'menu' && (
         <SettingsSheet
           settings={draft}
