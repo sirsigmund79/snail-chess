@@ -290,6 +290,7 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
           info={resultInfo(state, mode, human, settings.level)}
           action={seated ? 'Rematch' : 'New game'}
           onNew={seated ? online.rematch : openMenu}
+          onMenu={seated ? openMenu : undefined}
           onDismiss={() => setReviewing(true)}
         />
       )}

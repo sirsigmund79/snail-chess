@@ -190,12 +190,15 @@ export function ResultCard({
   info,
   action = 'New game',
   onNew,
+  onMenu,
   onDismiss,
 }: {
   info: ResultInfo;
   /** Button label: "New game", or "Rematch" in an online room. */
   action?: string;
   onNew: () => void;
+  /** Online only: a second button that opens the normal new game options. */
+  onMenu?: () => void;
   onDismiss: () => void;
 }) {
   useEffect(() => {
@@ -222,6 +225,11 @@ export function ResultCard({
         <button className="btn primary wide" onClick={onNew}>
           {action}
         </button>
+        {onMenu && (
+          <button className="btn wide" onClick={onMenu}>
+            New game
+          </button>
+        )}
         <p className="credits">
           <a href="https://stbinf.com/" target="_blank" rel="noopener noreferrer">
             Made by Parker Nolan

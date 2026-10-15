@@ -105,9 +105,9 @@ console.log('game over card:', over);
 if (over) {
   await guest.waitForSelector('[data-testid="result"]');
   await host.screenshot({ path: `${dir}/online-result-host.png` });
-  const label = await guest.locator('[data-testid="result"] button').textContent();
+  const label = (await guest.locator('[data-testid="result"] button').allTextContents()).join(' + ');
   console.log('result title host:', await host.locator('[data-testid="result"] h3').textContent(), '| guest:', await guest.locator('[data-testid="result"] h3').textContent(), '| button:', label);
-  await guest.click('[data-testid="result"] button');
+  await guest.click('[data-testid="result"] button.primary');
   await waitMoves(W, 0);
   await waitMoves(B, 0);
   console.log('after rematch host bars', await names(host));
@@ -122,7 +122,11 @@ if (over) {
   await B.waitForSelector('[data-testid="result"]');
   console.log('resign titles:', await W.locator('[data-testid="result"] h3').textContent(), '|', await B.locator('[data-testid="result"] h3').textContent());
   await B.screenshot({ path: `${dir}/online-resigned.png` });
-  await B.click('[data-testid="result"] button');
+  // "New game" under Rematch opens the normal options.
+  await W.click('[data-testid="result"] button:has-text("New game")');
+  await W.waitForSelector('.sheet >> text=Start new game');
+  await W.keyboard.press('Escape');
+  await B.click('[data-testid="result"] button.primary');
   await waitMoves(W, 0);
   console.log('after resign rematch W bars', await names(W));
   await host.screenshot({ path: `${dir}/online-rematch-host.png` });
