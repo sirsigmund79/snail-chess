@@ -19,24 +19,21 @@ npm run build && npm run preview           # production build
 npx tsx scripts/smoke.ts                   # browser smoke test against preview (Chromium)
 ```
 
-## Deploy (Cloudflare Pages → chess.stbinf.com)
+## Deploy (Cloudflare Workers → chess.stbinf.com)
 
-`dist/` is a static site. The Stockfish lite WASM is 7.3 MB, under the 25 MB per-file limit, and
-`public/_redirects` gives Pages its SPA fallback.
+The site is a static Vite build, served as Workers static assets. `wrangler.jsonc` points wrangler
+at `dist/` and turns on single-page-app fallback, so `/game/ABC123` loads the app. The Stockfish
+lite WASM is 7.3 MB, under the 25 MiB per-file limit.
 
-1. **Create the project:** in the Cloudflare dashboard, go to **Workers & Pages → Create application →
-   Pages → Import an existing Git repository** and choose `sirsigmund79/snail-chess`.
-2. **Build settings:**
-   - **Production branch:** `main` (or `feat/snail-chess-mvp`).
-   - **Framework preset:** None.
-   - **Build command:** `npm run build`.
-   - **Build output directory:** `dist`.
-   - **Environment variable:** `NODE_VERSION=22`.
-3. **Deploy:** Save and Deploy. The site appears at `<project>.pages.dev`, and every push to the
-   production branch redeploys it.
-4. **Custom domain:** under **Custom domains → Set up a custom domain**, enter `chess.stbinf.com`.
-   With stbinf.com's DNS on Cloudflare, the CNAME and certificate are created automatically.
-   Otherwise, add `CNAME chess → <project>.pages.dev` at your DNS host.
+**Workers Builds settings** (Workers & Pages → snail-chess → Settings → Build):
+- **Production branch:** `main`.
+- **Build command:** `npm run build`.
+- **Deploy command:** `npx wrangler deploy`.
+- **Build variable:** `NODE_VERSION=22`.
+
+**Custom domain:** go to Settings → Domains & Routes → Add → Custom Domain and enter
+`chess.stbinf.com`. Cloudflare creates the DNS record and certificate itself, so don't add a CNAME
+by hand.
 
 ## Rules as implemented
 
@@ -111,6 +108,26 @@ lights its legal squares in blue, and the squares the snails land on next are co
 
 There's a hidden **Bubblegum Bass** theme, unlocked by a `hyper` URL parameter (`?hyper`,
 `?hyper=1` or `?theme=hyper`). The only hint is a message in the browser's developer console.
+
+## Analytics (PostHog)
+
+Page views plus two events, using PostHog's free tier:
+- `game_started`: sent on a game's first move.
+  - Properties: `opponent` (bot or friend), `difficulty`, `player_color`, `theme`.
+- `game_ended`: sent when the game finishes.
+  - Properties: as above, plus `result` (slimed, checkmate or draw), `winner`, `player_won` and `moves`.
+
+Autocapture and session recording are off, and PostHog stores nothing in cookies or localStorage
+(memory persistence). The library is only downloaded when a key is configured.
+
+To turn it on, add these as **build** variables (Workers & Pages → snail-chess → Settings → Build →
+Variables and secrets), then redeploy. Vite reads them at build time, so runtime variables won't
+work:
+- `VITE_POSTHOG_KEY`: your project API key, `phc_…`, from PostHog → Project settings.
+- `VITE_POSTHOG_HOST`: `https://us.i.posthog.com` (or `https://eu.i.posthog.com` for EU projects).
+
+Locally, analytics stays off unless you create `.env.local` (see `.env.example`).
+`scripts/check-analytics.ts` verifies the events against a fake host without sending anything.
 
 ## Snail playback
 

@@ -1,0 +1,12 @@
+{
+  // Cloudflare Workers static-assets deploy (used by `npx wrangler deploy` in Workers Builds).
+  // The site is a static Vite build; no Worker script is needed.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "snail-chess",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    // Unknown paths (e.g. /game/ABC123) serve index.html so the React router can handle them.
+    "not_found_handling": "single-page-application"
+  }
+}

@@ -3,6 +3,8 @@ import { BotClient } from '../bot/botClient';
 import type { Level } from '../bot/hybrid';
 import { applyMove, createGame, IllegalMoveError, turn } from '../engine/game';
 import type { Color, ImmortalChessState, MoveInput } from '../engine/types';
+import { gameEvents, track } from '../analytics';
+import { ACTIVE_THEME } from './theme';
 import { usePlayback } from './usePlayback';
 
 export type Mode = 'hotseat' | 'bot';
@@ -25,6 +27,17 @@ export function useSnailGame(settings: GameSettings) {
   const state = stack[stack.length - 1];
 
   const playback = usePlayback(state);
+
+  // Analytics: report a game when its first move is made and when it ends (once each per game).
+  const prevRef = useRef(state);
+  const sentRef = useRef({ started: false, ended: false });
+  useEffect(() => {
+    const prev = prevRef.current;
+    if (prev === state) return;
+    prevRef.current = state;
+    const ctx = { mode: settings.mode, humanColor: settings.humanColor, level: settings.level, theme: ACTIVE_THEME.id };
+    for (const [event, props] of gameEvents(prev, state, ctx, sentRef.current)) track(event, props);
+  }, [state, settings.mode, settings.humanColor, settings.level]);
   const [botPick, setBotPick] = useState<{ for: ImmortalChessState; move: MoveInput } | null>(null);
 
   const isBotTurn =
@@ -82,6 +95,7 @@ export function useSnailGame(settings: GameSettings) {
   useEffect(() => () => botRef.current?.dispose(), []);
 
   const reset = useCallback(() => {
+    sentRef.current = { started: false, ended: false };
     setStack([createGame()]);
     setBotError(null);
   }, []);

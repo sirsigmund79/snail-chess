@@ -17,6 +17,7 @@
     "@fontsource/bangers": "^5.2.5",
     "@fontsource/figtree": "^5.2.5",
     "chess.js": "^1.4.0",
+    "posthog-js": "^1.435.1",
     "react": "^18.3.1",
     "react-chessboard": "^4.7.3",
     "react-dom": "^18.3.1",
