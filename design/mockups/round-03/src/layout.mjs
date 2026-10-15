@@ -5,7 +5,7 @@ import { cells, LOG, STATUS } from '../../round-01/src/scene.mjs';
 import { piece } from '../../round-02/src/pieces.mjs';
 
 // Paper's snail icon, unchanged.
-const snail = (side, cls = 'snail') => `<svg class="${cls} s-${side}" viewBox="0 0 40 40" aria-hidden="true">
+export const snail = (side, cls = 'snail') => `<svg class="${cls} s-${side}" viewBox="0 0 40 40" aria-hidden="true">
   <rect x="5" y="25" width="30" height="8" rx="4" class="foot"/>
   <path d="M30 26 L33 15 M33 26 L37 17" class="horn"/>
   <circle cx="18" cy="20" r="11" class="shell"/>
@@ -36,7 +36,7 @@ const countdown = () => {
   return `<div class="count" role="img" aria-label="Snails move after Black's next move">${dots}${snail('w', `count-snail ${STATUS.movesUntilSnails === 1 ? 'soon' : ''}`)}</div>`;
 };
 
-const RULES = [
+export const RULES = [
   ['Two snails, one each.', 'Yours crawls toward their king. Theirs crawls toward yours.'],
   ['Every three moves, they step.', 'After Black moves, each snail moves one square closer. The dots count down.'],
   ['Snails crush.', 'Whatever is on the square they land on is gone. A crushed king loses the game.'],

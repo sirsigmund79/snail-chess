@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "lang": "en",
+  "project": "Immortal Snail Chess",
+  "round": "04",
+  "nativeViewport": "390x844",
+  "brief": "One design in three states. Really Bad Chess-style colour (white board, black hatching, bright blue for legal moves, coral only for snails) on a chess.com-style layout, arranged with Proven / Better / New.",
+  "candidates": [
+    {"id": "idle", "name": "Your move", "concept": "Nothing selected: the only colour on the board is the snails and where they land next.", "typography": "Figtree 800 names and numbers, 700 labels.", "palette": ["#ffffff", "#111111", "#ff5a4e", "#ffb3b3"], "traits": ["Snail countdown in the app bar centre", "Snail distance in each player's clock slot"], "source": "idle.html"},
+    {"id": "selected", "name": "Bishop selected", "concept": "Tap a piece and every legal square lights up bright blue; a legal square the snail will land on keeps a coral ring.", "typography": "Figtree 800 names and numbers, 700 labels.", "palette": ["#ffffff", "#111111", "#2e9bff", "#ff5a4e"], "traits": ["Legal squares from the real engine (snail walls respected)", "Hatching stays visible through the blue"], "source": "selected.html"},
+    {"id": "rules", "name": "Rules", "concept": "The ? button or Rules opens five one-line rules in a bottom sheet.", "typography": "Figtree 800 heading, 500 body.", "palette": ["#ffffff", "#111111", "#ffb3b3"], "traits": ["Bottom sheet within thumb reach", "Numbered black chips match the board's ink"], "source": "rules.html"}
+  ]
+}
