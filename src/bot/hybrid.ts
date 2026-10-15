@@ -2,6 +2,7 @@ import { applyMove, getLegalMoves, turn } from '../engine/game';
 import { engineFen } from '../engine/boardValidator';
 import type { ImmortalChessState, MoveInput } from '../engine/types';
 import { MATE, materialEval, type ScoredMove } from './snailEval';
+import { snailGuard } from './snailGuard';
 import { toUci, type CandidateEngine } from './uci';
 
 export type Level = 'easy' | 'medium' | 'hard';
@@ -93,14 +94,27 @@ export async function chooseMove(
 ): Promise<Choice> {
   const cfg = LEVELS[level];
   const rng = deps.rng ?? Math.random;
-  const legal = getLegalMoves(state);
+  // Hard snail rule (see snailGuard.ts): win right now, or keep the king out of the snail's reach.
+  const guard = snailGuard(state);
+  if (guard?.kind === 'win') {
+    return {
+      move: guard.move,
+      score: MATE,
+      source: 'snail-search',
+      candidates: [{ uci: toUci(guard.move), snail: MATE, final: MATE }],
+    };
+  }
+  const allowed = guard?.kind === 'restrict' ? guard.allowed : undefined;
+  const legal = getLegalMoves(state).filter(
+    (m) => !allowed || allowed.some((a) => a.from === m.from && a.to === m.to && a.promotion === (m.promotion ?? undefined)),
+  );
   if (!legal.length) throw new Error('No legal moves');
   const side = turn(state);
 
   // Cheap full-width snail-tactics pass: Stockfish cannot see snail kills, so a forced snail win
   // (or a checkmate the lookahead proves) must be found here rather than in its candidate list.
   const quickDepth = Math.min(2, cfg.lookahead);
-  const quick = await deps.lookahead(state, quickDepth);
+  const quick = await deps.lookahead(state, quickDepth, allowed);
   if (quick.length && quick[0].score > MATE / 4) {
     return {
       move: quick[0].move,
@@ -147,7 +161,7 @@ export async function chooseMove(
     }
   }
 
-  const scored = cfg.lookahead === quickDepth ? quick : await deps.lookahead(state, cfg.lookahead);
+  const scored = cfg.lookahead === quickDepth ? quick : await deps.lookahead(state, cfg.lookahead, allowed);
   const rows = scored
     .map((s) => ({ move: s.move, uci: toUci(s.move), snail: s.score, final: s.score }))
     .sort((a, b) => b.final - a.final);
