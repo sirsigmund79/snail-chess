@@ -171,6 +171,7 @@ export function useOnlineGame(roomId: string) {
   const opponent: Color | null = you === 'spectator' ? null : you === 'w' ? 'b' : 'w';
 
   return {
+    roomId,
     state,
     play,
     playback,

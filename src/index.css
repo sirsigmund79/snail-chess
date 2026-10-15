@@ -41,6 +41,7 @@ button:disabled { opacity: 0.35; cursor: default; }
 .brand { justify-self: center; display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 17px; letter-spacing: -0.01em; }
 html[data-theme='bubblegum'] .brand span { background: var(--brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .brand-snail { width: 28px; height: 28px; }
+.room-tag { margin: -6px 0 0; text-align: center; font-size: 12px; font-weight: 700; color: var(--soft); letter-spacing: 0.04em; flex: none; }
 
 .strip {
   display: flex; gap: 4px; justify-content: flex-end; align-items: center; flex: none;

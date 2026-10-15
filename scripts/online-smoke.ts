@@ -52,6 +52,8 @@ await guest.waitForSelector('[data-testid="player-w"]');
 await host.waitForSelector('[data-testid="player-w"]');
 console.log('host bars', await names(host));
 console.log('guest bars', await names(guest));
+const tag = await guest.locator('[data-testid="room-tag"]').textContent();
+if (tag !== `Room: ${new URL(roomUrl).pathname.split('/').pop()}`) throw new Error(`room tag: ${tag}`);
 
 await move(W, 'e2', 'e4');
 await waitMoves(B, 1);

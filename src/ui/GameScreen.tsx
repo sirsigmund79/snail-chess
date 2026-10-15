@@ -247,6 +247,11 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
           <Svg>{Icon.rules}</Svg>
         </button>
       </header>
+      {online && (
+        <p className="room-tag" data-testid="room-tag">
+          Room: {online.roomId}
+        </p>
+      )}
       <MoveStrip state={state} hideLastTick={playback.busy} />
       {game.botError && <p className="error">Bot error: {game.botError}</p>}
 
