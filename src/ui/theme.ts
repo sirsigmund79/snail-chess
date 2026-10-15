@@ -19,6 +19,15 @@ export interface Theme {
   /** Inset outline on the selected piece's square. */
   selectedRing: string;
   lastMove: string;
+  /** Page colours. */
+  bg: string;
+  ink: string;
+  soft: string;
+  line: string;
+  /** Text on an ink-filled chip (e.g. the current move). */
+  onInk: string;
+  /** Optional gradient for the wordmark. */
+  brand?: string;
 }
 
 export const THEMES: Record<ThemeId, Theme> = {
@@ -33,6 +42,11 @@ export const THEMES: Record<ThemeId, Theme> = {
     snailDark: '#e9483d',
     selectedRing: '#111111',
     lastMove: 'rgba(17, 17, 17, 0.08)',
+    bg: '#ffffff',
+    ink: '#111111',
+    soft: '#8a8a8a',
+    line: '#e6e6e6',
+    onInk: '#ffffff',
   },
   bubblegum: {
     id: 'bubblegum',
@@ -45,6 +59,12 @@ export const THEMES: Record<ThemeId, Theme> = {
     snailDark: '#a2e612',
     selectedRing: '#2a0033',
     lastMove: 'rgba(42, 0, 51, 0.1)',
+    bg: '#ffd3ef',
+    ink: '#2a0033',
+    soft: '#b0549a',
+    line: '#ffb3e4',
+    onInk: '#fff0fa',
+    brand: 'linear-gradient(90deg, #ff2fa8, #7a3cff)',
   },
 };
 
@@ -62,7 +82,21 @@ export const ACTIVE_THEME: Theme =
 
 /** Tag <html> with the theme and leave the (console-only) hint for anyone peeking at dev tools. */
 export function applyTheme(theme: Theme = ACTIVE_THEME) {
-  document.documentElement.dataset.theme = theme.id;
+  const root = document.documentElement;
+  root.dataset.theme = theme.id;
+  const vars: Record<string, string> = {
+    '--bg': theme.bg,
+    '--ink': theme.ink,
+    '--soft': theme.soft,
+    '--line': theme.line,
+    '--on-ink': theme.onInk,
+    '--legal': theme.legal,
+    '--snail': theme.snail,
+    '--sq-light': theme.light,
+    '--sq-dark': theme.dark,
+    '--brand': theme.brand ?? 'none',
+  };
+  for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
   const style = 'font: 600 13px system-ui; color: #ff2fa8';
   if (theme.id === 'bubblegum') {
     console.log('%c🐌 Bubblegum Bass unlocked. Stay hyper.', style);

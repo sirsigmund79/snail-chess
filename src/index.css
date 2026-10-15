@@ -1,83 +1,189 @@
 @tailwind base;
-@tailwind components;
-@tailwind utilities;
 
-@keyframes snail-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4%); }
+/* Immortal Snail Chess — round-05 design. Colours come from the active theme (src/ui/theme.ts),
+   which sets these variables on <html>; the fallbacks are Paper grey. */
+:root {
+  --bg: #ffffff;
+  --ink: #111111;
+  --soft: #8a8a8a;
+  --line: #e6e6e6;
+  --on-ink: #ffffff;
+  --legal: #2e9bff;
+  --snail: #ff5a4e;
+  --brand: none;
+  color-scheme: light;
 }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 500 15px/1.4 Figtree, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:disabled { opacity: 0.35; cursor: default; }
+:focus-visible { outline: 3px solid var(--legal); outline-offset: 2px; }
 
-/* --- Snail overlay ---------------------------------------------------- */
+/* --- Screen ------------------------------------------------------------------ */
+.game {
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 4px) 0 env(safe-area-inset-bottom);
+  overflow: hidden;
+}
+.appbar { display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; padding: 0 6px; height: 52px; flex: none; }
+.ib { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; }
+.ib svg { width: 24px; height: 24px; }
+.brand { justify-self: center; display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 17px; letter-spacing: -0.01em; }
+html[data-theme='bubblegum'] .brand span { background: var(--brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.brand-snail { width: 28px; height: 28px; }
+
+.strip {
+  display: flex; gap: 4px; justify-content: flex-end; align-items: center; flex: none;
+  padding: 4px 10px 0; white-space: nowrap; overflow: hidden; font-weight: 700; font-size: 15px; min-height: 34px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%); mask-image: linear-gradient(90deg, transparent, #000 22%);
+}
+.mv { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 6px; }
+.mv b { color: var(--soft); font-weight: 700; }
+.mv.now { background: var(--ink); color: var(--on-ink); min-width: 30px; justify-content: center; }
+.mv.now b { color: var(--on-ink); }
+.mv.sn { padding: 2px; }
+.tiny { width: 22px; height: 22px; }
+.tiny.crushed .snail-shell { fill: var(--snail); }
+.error { color: var(--snail); font-weight: 700; font-size: 13px; padding: 0 14px; }
+
+.space { flex: 3; min-height: 0; }
+.space-b { flex: 1; max-height: 40px; min-height: 0; }
+
+.pbar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; flex: none; }
+.av { width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center; font-weight: 800; font-size: 15px; background: var(--ink); color: var(--on-ink); flex: none; }
+.pbar.light-av .av { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2.5px var(--ink); }
+.nm { flex: 1; min-width: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm b { font-weight: 800; }
+.nm span { color: var(--soft); font-weight: 700; }
+.nm em { font-style: normal; font-weight: 800; }
+
+.dots { display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 4px; flex: none; }
+.dot { width: 10px; height: 10px; border-radius: 50%; border: 1.6px solid var(--ink); box-sizing: border-box; }
+.dot.on { background: var(--ink); }
+.dot.active { width: 13px; height: 13px; border-width: 3px; }
+.dot-snail { width: 28px; height: 28px; margin-left: 1px; transition: width 0.2s, height 0.2s; }
+.dot-snail.moving { width: 32px; height: 32px; }
+.dot-snail.moving .snail-shell, .dot-snail.moving .snail-foot, .dot-snail.moving .snail-horn, .dot-snail.moving .snail-spiral { stroke-width: 2.6; }
+.dot-snail.moving .snail-shell { fill: var(--snail); }
+
+/* Board: as large as fits between the bars on short screens. */
+.board-wrap { width: min(100%, calc(100dvh - 330px)); margin: 0 auto; flex: none; }
+.board-frame { position: relative; }
+.board-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+.toolbar { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); flex: none; }
+.toolbar button { height: 58px; display: grid; justify-items: center; align-content: center; gap: 2px; font-weight: 700; font-size: 12px; }
+.toolbar svg { width: 24px; height: 24px; }
+
+/* --- Snail icon ---------------------------------------------------------------- */
+.snail-foot { fill: #f4f4f4; stroke: var(--ink); stroke-width: 1.8; }
+.snail-horn { stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; }
+.snail-shell { stroke: var(--ink); stroke-width: 1.8; }
+.snail-w .snail-shell { fill: #fff; }
+.snail-b .snail-shell { fill: var(--ink); }
+.snail-spiral { fill: none; stroke-width: 1.6; stroke-linecap: round; }
+.snail-w .snail-spiral { stroke: var(--ink); }
+.snail-b .snail-spiral { stroke: #fff; }
+/* On the board, outlines stay dark whatever the theme. */
+.board-overlay .snail-icon { --ink: #111; }
+
+/* --- Board overlay: snails, targets, crushes, banners ------------------------- */
 .snail-piece {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: absolute; display: grid; place-items: center; z-index: 3;
   transition: left 600ms cubic-bezier(0.45, 0, 0.25, 1), top 600ms cubic-bezier(0.45, 0, 0.25, 1);
-  z-index: 3;
 }
-.snail-piece::before {
-  content: '';
-  position: absolute;
-  inset: 8%;
-  border-radius: 9999px;
-  opacity: 0.6;
-}
-.snail-piece-w::before { background: #fafaf9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.9); }
-.snail-piece-b::before { background: #1c1917; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.9); }
-.snail-body {
-  position: relative;
-  display: inline-block;
-  font-size: min(6.2vw, 2.9rem);
-  line-height: 1;
-  animation: snail-bob 2.4s ease-in-out infinite;
-}
-.snail-face-right { display: inline-block; transform: scaleX(-1); }
-
-.snail-target {
-  position: absolute;
-  z-index: 2;
-  border-radius: 3px;
-}
-/* The square itself is filled with the theme's snail colour (SnailBoard square styles);
-   this layer only adds a pulse when the snails are about to move. */
+.board-snail { width: 90%; height: 90%; }
+.board-snail.face-left { transform: scaleX(-1); }
+.snail-target { position: absolute; z-index: 2; }
+/* The square itself is filled with the snail colour (SnailBoard square styles); this layer only
+   pulses when the snails are about to move. */
 .snail-target-imminent { box-shadow: inset 0 0 0 4px rgba(17, 17, 17, 0.55); animation: snail-target-throb 0.9s ease-in-out infinite; }
-@keyframes snail-target-throb {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-
-.snail-crush {
-  position: absolute;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: min(9vw, 4.2rem);
-  animation: snail-crush 1s ease-out forwards;
-}
+@keyframes snail-target-throb { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.snail-crush { position: absolute; z-index: 4; border-radius: 50%; box-shadow: 0 0 0 0 var(--snail); animation: snail-crush 0.9s ease-out forwards; }
 @keyframes snail-crush {
-  0% { transform: scale(0.2); opacity: 0; }
-  20% { transform: scale(1.5); opacity: 1; }
-  60% { transform: scale(1.15); opacity: 0.9; }
-  100% { transform: scale(1.6); opacity: 0; }
+  0% { box-shadow: inset 0 0 0 40px var(--snail); opacity: 0.95; transform: scale(0.6); }
+  100% { box-shadow: inset 0 0 0 2px var(--snail); opacity: 0; transform: scale(1.8); }
 }
+.banner-slot { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: grid; place-items: center; pointer-events: none; z-index: 5; }
+.snail-banner {
+  max-width: 92%; padding: 10px 16px; border-radius: 12px; font-weight: 800; font-size: 16px; text-align: center;
+  background: var(--ink); color: var(--on-ink); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); animation: banner-in 220ms ease-out;
+}
+.snail-banner.tone-danger { background: var(--snail); color: #fff; }
+@keyframes banner-in { from { transform: translateY(8px) scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
 
-.snail-banner { animation: snail-banner-in 260ms ease-out; }
-@keyframes snail-banner-in {
-  from { transform: translateY(12px) scale(0.92); opacity: 0; }
-  to { transform: none; opacity: 1; }
-}
+/* --- Buttons, sheets, result card --------------------------------------------- */
+.btn { height: 48px; padding: 0 16px; border-radius: 12px; font-weight: 800; box-shadow: inset 0 0 0 2px var(--ink); display: inline-grid; place-items: center; text-decoration: none; color: var(--ink); }
+.btn.primary { background: var(--ink); color: var(--on-ink); box-shadow: none; }
+.btn.ghost { box-shadow: none; color: var(--soft); }
+.btn.wide { width: 100%; margin-top: 10px; }
+.muted { color: var(--soft); font-weight: 600; }
 
-@keyframes snail-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
+.scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); z-index: 1000; }
+.sheet {
+  position: fixed; z-index: 1001; left: 0; right: 0; bottom: 0; max-width: 480px; margin: 0 auto; max-height: 86dvh; overflow-y: auto;
+  background: var(--bg); border-radius: 18px 18px 0 0; padding: 10px 20px calc(env(safe-area-inset-bottom) + 16px);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18); animation: sheet-in 220ms ease-out;
 }
-.countdown-urgent { animation: snail-pulse 1s ease-in-out infinite; }
+@keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.grip { width: 38px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 12px; }
+.sheet-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.head-snail { width: 44px; height: 44px; flex: none; }
+.sheet h2 { font-weight: 800; font-size: 22px; line-height: 1.15; margin: 0; }
+.sheet-head p { color: var(--soft); font-weight: 700; font-size: 14px; margin: 0; }
+.sheet-title { margin-bottom: 10px !important; }
+.rules { list-style: none; counter-reset: r; margin: 0; padding: 0; }
+.rules li { position: relative; padding: 9px 0 9px 34px; border-top: 1px solid var(--line); font-size: 15px; color: var(--soft); }
+.rules li b { color: var(--ink); font-weight: 800; }
+.rules li::before {
+  counter-increment: r; content: counter(r); position: absolute; left: 0; top: 9px; width: 24px; height: 24px; border-radius: 6px;
+  background: var(--ink); color: var(--on-ink); font-size: 13px; font-weight: 800; display: grid; place-items: center;
+}
+.field { display: grid; gap: 6px; margin: 12px 0; }
+.field-label { font-weight: 800; font-size: 13px; color: var(--soft); }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button { flex: 1; min-height: 44px; padding: 0 12px; border-radius: 10px; font-weight: 800; box-shadow: inset 0 0 0 2px var(--line); }
+.seg button.on { box-shadow: inset 0 0 0 2.5px var(--ink); background: var(--ink); color: var(--on-ink); }
+.move-table { list-style: none; margin: 0; padding: 0; }
+.move-table li { display: grid; grid-template-columns: 36px 1fr 1fr; padding: 6px 0; border-top: 1px solid var(--line); font-weight: 700; }
+.move-table .n { color: var(--soft); }
+.move-table .tick { grid-column: 2 / -1; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--soft); padding-top: 2px; }
+.move-table .tick.crush { color: var(--snail); }
+
+.dim { position: fixed; inset: 0; background: color-mix(in srgb, var(--bg) 55%, transparent); z-index: 900; }
+.result {
+  position: fixed; z-index: 901; left: 50%; top: 42%; transform: translate(-50%, -50%); width: min(320px, calc(100% - 40px));
+  background: var(--bg); border-radius: 16px; box-shadow: 0 0 0 2px var(--ink), 0 18px 40px rgba(0, 0, 0, 0.25);
+  padding: 14px 16px; text-align: center; animation: result-in 260ms ease-out;
+}
+@keyframes result-in { from { transform: translate(-50%, -46%) scale(0.96); opacity: 0; } to { transform: translate(-50%, -50%); opacity: 1; } }
+.result .emblem { width: 56px; height: 56px; margin: 0 auto 4px; display: grid; place-items: center; border-radius: 14px; }
+.result .emblem.snail { background: var(--snail); }
+.result .emblem.mate { background: var(--legal); }
+.result .emblem.draw { background: var(--line); }
+.result .emblem svg { width: 46px; height: 46px; --ink: #111; }
+.emblem-text { font-weight: 800; font-size: 30px; color: #fff; }
+.result h3 { font-weight: 800; font-size: 28px; line-height: 1.1; margin: 4px 0 0; }
+.result p { font-weight: 700; color: var(--soft); margin: 4px 0 0; }
+.result .meta { font-size: 13px; margin-top: 6px; }
+.result .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+
+.room { justify-content: center; align-items: center; text-align: center; gap: 12px; padding: 24px; }
+.room h2 { font-weight: 800; margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .snail-piece { transition-duration: 1ms; }
-  .snail-body, .snail-target-imminent, .countdown-urgent, .snail-crush, .snail-banner { animation: none; }
+  .snail-target-imminent, .snail-crush, .snail-banner, .sheet, .result { animation: none; }
 }
 
 /* --- SLIMED (a slimy take on GTA's "WASTED"; lettering is a pre-rendered Pricedown image) --- */
@@ -85,14 +191,10 @@
   filter: grayscale(1) contrast(1.15) brightness(0.72);
   transition: filter 1100ms ease-out;
 }
-.slimed-world #snail-board-wrap {
-  transform: scale(1.06);
-  transition: transform 4.5s cubic-bezier(0.2, 0, 0.1, 1);
-}
 .slimed-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 2000;
   animation: slimed-dim 1100ms ease-out forwards;
   display: grid;
   place-items: center;
@@ -157,22 +259,7 @@
   to { opacity: 1; transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .slimed-world, .slimed-world #snail-board-wrap { transition: none; }
-  .slimed-world #snail-board-wrap { transform: none; }
+  .slimed-world { transition: none; }
   .slimed-band, .slimed-word, .slimed-img, .slimed-caption { animation: none; opacity: 1; transform: none; }
   .slimed-overlay { animation: none; background: rgba(28, 25, 23, 0.35); }
 }
-
-/* --- Bubblegum Bass (hidden theme: add ?hyper to the URL) ------------------- */
-html[data-theme='bubblegum'] body { background: #ffd3ef; color: #2a0033; }
-html[data-theme='bubblegum'] header { border-color: #ffb3e4; }
-html[data-theme='bubblegum'] header a {
-  background: linear-gradient(90deg, #ff2fa8, #7a3cff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-html[data-theme='bubblegum'] .bg-white,
-html[data-theme='bubblegum'] .dark\:bg-stone-800 { background-color: #fff0fa !important; color: #2a0033; }
-html[data-theme='bubblegum'] .bg-emerald-600 { background-color: #ff2fa8 !important; }
-html[data-theme='bubblegum'] .bg-emerald-500 { background-color: #00e1ff !important; }

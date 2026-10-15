@@ -8,7 +8,7 @@ import { chromium } from 'playwright-core';
 
 const [target, out, w = '1440', h = '900', wait = '800'] = process.argv.slice(2);
 const url = /^https?:/.test(target) ? target : pathToFileURL(resolve(target)).href;
-const proxy = /^https?:/.test(target) && process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY } : undefined;
+const proxy = /^https?:/.test(target) && !/^https?:\/\/(localhost|127\.0\.0\.1)/.test(target) && process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY } : undefined;
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium',
   ...(proxy ? { proxy } : {}),

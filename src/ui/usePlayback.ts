@@ -48,7 +48,7 @@ export function framesFor(record: MoveRecord, final: ImmortalChessState): Frame[
   let fen = record.fenBeforeTick;
   let current = snails;
   frames.push({ fen, snails: current, hold: TIMING.afterMove });
-  frames.push({ fen, snails: current, imminent: true, banner: { text: '🐌 The snails stir…', tone: 'info' }, hold: TIMING.stir });
+  frames.push({ fen, snails: current, imminent: true, banner: { text: 'The snails stir…', tone: 'info' }, hold: TIMING.stir });
 
   for (const sm of record.tick.moves) {
     current = { ...current, [sm.color]: { ...current[sm.color], square: sm.to } };
@@ -75,7 +75,7 @@ export function framesFor(record: MoveRecord, final: ImmortalChessState): Frame[
           fen,
           snails: current,
           crush,
-          banner: { text: `💥 ${NAME[sm.color]}'s snail crushed ${victim}!`, tone: 'danger' },
+          banner: { text: `${NAME[sm.color]}'s snail crushed ${victim}!`, tone: 'danger' },
           hold: TIMING.impact,
         });
       }

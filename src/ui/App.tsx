@@ -1,16 +1,16 @@
 import { BrowserRouter, Link, Route, Routes, useParams } from 'react-router-dom';
 import { GameScreen } from './GameScreen';
+import { SnailIcon } from './SnailIcon';
 
 function RoomPlaceholder() {
   const { roomId } = useParams();
   return (
-    <div className="mx-auto max-w-lg p-6 text-center">
-      <h2 className="text-xl font-semibold">Room {roomId}</h2>
-      <p className="mt-2 text-stone-600 dark:text-stone-400">
-        Online rooms are coming soon (PartyKit). For now, play hot-seat or against the bot.
-      </p>
-      <Link className="mt-4 inline-block text-emerald-700 underline dark:text-emerald-400" to="/">
-        Back to local play
+    <div className="game room">
+      <SnailIcon side="w" className="head-snail" />
+      <h2>Room {roomId}</h2>
+      <p className="muted">Online rooms are coming soon. For now, play the bot or a friend on the same phone.</p>
+      <Link className="btn primary" to="/">
+        Back to the game
       </Link>
     </div>
   );
@@ -19,11 +19,6 @@ function RoomPlaceholder() {
 export function App() {
   return (
     <BrowserRouter>
-      <header className="border-b border-stone-300 px-4 py-3 dark:border-stone-700">
-        <Link to="/" className="text-lg font-bold">
-          🐌 Immortal Snail Chess
-        </Link>
-      </header>
       <Routes>
         <Route path="/" element={<GameScreen />} />
         <Route path="/game/:roomId" element={<RoomPlaceholder />} />

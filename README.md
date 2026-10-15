@@ -52,7 +52,11 @@ src/bot/
   botClient.ts       browser glue (Stockfish worker + search worker)
 src/workers/         search.worker.ts, stockfishUci.ts
 src/network/         GameTransport interface, room codes (PartyKit transport: TODO)
-src/ui/              React + react-chessboard
+src/ui/              React + react-chessboard, phone-first (design: design/mockups/round-05)
+  GameScreen.tsx     app bar, move strip, player bars with move dots, board, toolbar, result card
+  Sheets.tsx         menu (new game settings), How to play, moves list, result card
+  SnailBoard.tsx     board, legal / snail-square highlights, snail overlay, crush + banners
+  SnailIcon.tsx      the flat snail used everywhere
 scripts/             selfplay.ts, smoke.ts, nodeStockfish.ts, copy-stockfish.mjs
 ```
 

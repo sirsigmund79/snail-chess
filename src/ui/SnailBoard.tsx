@@ -4,6 +4,7 @@ import type { PromotionPieceOption, Square as BoardSquare } from 'react-chessboa
 import { findKing, parseFen, sqToCoords } from '../engine/fen';
 import { legalMoves } from '../engine/boardValidator';
 import { nextSnailStep } from '../engine/snailEngine';
+import { SnailIcon } from './SnailIcon';
 import { ACTIVE_THEME as T } from './theme';
 import type { Color, MoveInput, MoveRecord, Square } from '../engine/types';
 import type { Frame } from './usePlayback';
@@ -59,8 +60,8 @@ export function SnailBoard({ frame, lastMove, orientation, interactive, imminent
     const next = king ? nextSnailStep(snail.square, king, frame.snails[enemy].square) : snail.square;
     const [sf] = sqToCoords(snail.square);
     const [nf] = sqToCoords(next);
-    const movesRightOnScreen = orientation === 'white' ? nf > sf : nf < sf;
-    return { color, square: snail.square, next, faceRight: movesRightOnScreen };
+    const movesLeftOnScreen = orientation === 'white' ? nf < sf : nf > sf;
+    return { color, square: snail.square, next, faceLeft: movesLeftOnScreen };
   });
 
   // Squares the selected (or dragged) piece can legally reach, snail rules included.
@@ -107,7 +108,7 @@ export function SnailBoard({ frame, lastMove, orientation, interactive, imminent
   const pieceAt = (sq: Square) => board[(Number(sq[1]) - 1) * 8 + (sq.charCodeAt(0) - 97)];
 
   return (
-    <div ref={shakeRef} className="relative" onClickCapture={(e) => {
+    <div ref={shakeRef} className="board-frame" onClickCapture={(e) => {
       if (busy) {
         e.stopPropagation();
         onSkip();
@@ -144,11 +145,11 @@ export function SnailBoard({ frame, lastMove, orientation, interactive, imminent
           const piece = pieceAt(square);
           setSelected(piece && piece.color === turnColor ? square : null);
         }}
-        customBoardStyle={{ borderRadius: 6, boxShadow: '0 6px 24px rgba(0,0,0,0.25)' }}
+        customNotationStyle={{ fontSize: '9px', fontWeight: 700, opacity: 0.55 }}
         animationDuration={250}
       />
 
-      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-md" aria-hidden>
+      <div className="board-overlay" aria-hidden>
         {snails.map((s) =>
           s.next === s.square ? null : (
             <div
@@ -159,34 +160,24 @@ export function SnailBoard({ frame, lastMove, orientation, interactive, imminent
           ),
         )}
         {frame.crush && (
-          <div key={frame.crush.key} className="snail-crush" style={{ ...place(frame.crush.square, orientation), width: '12.5%', height: '12.5%' }}>
-            💥
-          </div>
+          <div key={frame.crush.key} className="snail-crush" style={{ ...place(frame.crush.square, orientation), width: '12.5%', height: '12.5%' }} />
         )}
         {snails.map((s) => (
           <div
             key={`snail-${s.color}`}
             data-testid={`snail-piece-${s.color}`}
-            data-square={s.square}
-            className={`snail-piece snail-piece-${s.color}`}
+            data-snail-square={s.square}
+            className="snail-piece"
             style={{ ...place(s.square, orientation), width: '12.5%', height: '12.5%' }}
           >
-            <span className={s.faceRight ? 'snail-face-right' : ''}>
-              <span className="snail-body">🐌</span>
-            </span>
+            <SnailIcon side={s.color} className={`board-snail${s.faceLeft ? ' face-left' : ''}`} />
           </div>
         ))}
       </div>
 
-      <div aria-live="polite" className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2">
+      <div aria-live="polite" className="banner-slot">
         {frame.banner && (
-          <div
-            key={frame.banner.text}
-            data-testid="snail-banner"
-            className={`snail-banner mx-auto w-fit max-w-[92%] rounded-xl px-5 py-3 text-center text-lg font-bold shadow-xl sm:text-xl ${
-              frame.banner.tone === 'danger' ? 'bg-red-700/90 text-white' : 'bg-stone-900/85 text-amber-100'
-            }`}
-          >
+          <div key={frame.banner.text} data-testid="snail-banner" className={`snail-banner tone-${frame.banner.tone}`}>
             {frame.banner.text}
           </div>
         )}
