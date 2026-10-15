@@ -6,6 +6,7 @@ import { findKing, parseFen } from '../engine/fen';
 import { turn } from '../engine/game';
 import type { Color, ImmortalChessState } from '../engine/types';
 import { generateRoomCode } from '../network/roomCode';
+import { SlimedOverlay } from './SlimedOverlay';
 import { SnailBoard } from './SnailBoard';
 import type { Frame } from './usePlayback';
 import { useSnailGame, type Mode } from './useSnailGame';
@@ -61,8 +62,10 @@ function SnailCountdown(props: {
       <ul className="mt-3 space-y-1 text-xs">
         {threat.map(({ victim, hunter, dist }) => (
           <li key={victim} className={dist !== null && dist <= 1 ? 'font-semibold text-red-700 dark:text-red-400' : 'text-stone-600 dark:text-stone-400'}>
-            {NAME[hunter]}'s snail (<b data-testid={`snail-${hunter}`}>{shown.snails[hunter].square}</b>) is{' '}
-            {dist === null ? '—' : `${dist} square${dist === 1 ? '' : 's'}`} from {you === victim ? 'your' : `${NAME[victim]}'s`} king
+            {NAME[hunter]}'s snail (<b data-testid={`snail-${hunter}`}>{shown.snails[hunter].square}</b>){' '}
+            {dist === null
+              ? `slimed ${you === victim ? 'your' : `${NAME[victim]}'s`} king`
+              : `is ${dist} square${dist === 1 ? '' : 's'} from ${you === victim ? 'your' : `${NAME[victim]}'s`} king`}
           </li>
         ))}
       </ul>
@@ -111,10 +114,14 @@ export function GameScreen() {
   }, [playback]);
   const orientation = mode === 'bot' ? (humanColor === 'w' ? 'white' : 'black') : 'white';
 
+  const slimed = playback.frame.slimed;
   return (
-    <main className="mx-auto grid max-w-5xl gap-6 px-4 py-6 md:grid-cols-[minmax(0,1fr)_18rem]">
+    <>
+    <main
+      className="mx-auto grid max-w-5xl gap-6 px-4 py-6 md:grid-cols-[minmax(0,1fr)_18rem]"
+    >
       <section className="min-w-0">
-        <div className="mx-auto w-full max-w-[min(100%,36rem)]">
+        <div id="snail-board-wrap" className="mx-auto w-full max-w-[min(100%,36rem)]">
           <SnailBoard
             frame={playback.frame}
             lastMove={state.history[state.history.length - 1]}
@@ -225,5 +232,9 @@ export function GameScreen() {
         </ol>
       </aside>
     </main>
+    {slimed && (
+      <SlimedOverlay victim={slimed.victim} by={slimed.by} you={mode === 'bot' ? humanColor : null} onSkip={playback.skip} />
+    )}
+    </>
   );
 }

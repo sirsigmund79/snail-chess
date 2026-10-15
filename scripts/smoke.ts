@@ -68,6 +68,24 @@ await shot('crush');
 await page.keyboard.press('Space'); // skip the rest
 await page.waitForSelector('[data-testid="snail-banner"]', { state: 'detached', timeout: 2000 });
 
+// SLIMED: shuffle knights for 24 plies so White's snail walks a4→b5→c6→d7→e8 into Black's king.
+await page.click('text=New game');
+const shuffle = [['b1', 'c3'], ['g8', 'h6'], ['c3', 'b1'], ['h6', 'g8']];
+for (let i = 0; i < 24; i++) {
+  const [f, t] = shuffle[i % 4];
+  await page.waitForFunction(() => !document.querySelector('[data-testid="snail-banner"]'), null, { timeout: 15000 });
+  if (i % 6 === 0 && i > 0) await page.keyboard.press('Space');
+  await move(f, t);
+  if ((i + 1) % 6 === 0 && i < 23) await page.keyboard.press('Space'); // skip the routine ticks
+}
+await page.waitForSelector('[data-testid="slimed"]', { timeout: 10000 });
+await page.waitForTimeout(2200);
+await shot('slimed');
+console.log('SLIMED finale shown; status:', await page.textContent('[role="status"]'));
+await page.keyboard.press('Space');
+await page.waitForSelector('[data-testid="slimed"]', { state: 'detached', timeout: 3000 });
+console.log('after finale:', await page.textContent('[role="status"]'));
+
 // vs bot: the reply to 1.e4 should vary across fresh games.
 await page.selectOption('select >> nth=0', 'bot');
 const replies: string[] = [];

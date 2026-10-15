@@ -13,6 +13,8 @@ export interface Frame {
   crush?: { square: Square; key: string };
   /** Snails are about to move: make their target squares throb. */
   imminent?: boolean;
+  /** A king was crushed: play the full-screen "SLIMED" finale. */
+  slimed?: { victim: Color; by: Color };
   /** How long to hold this frame before advancing (ms). */
   hold: number;
 }
@@ -32,6 +34,7 @@ export const TIMING = {
   stir: 750,
   slide: 650,
   impact: 1100,
+  slimed: 4800,
   quietStep: 350,
 };
 
@@ -62,16 +65,20 @@ export function framesFor(record: MoveRecord, final: ImmortalChessState): Frame[
       p.board[sqIndex(sm.to)] = null;
       fen = serializeFen(p);
       const victim = `${NAME[sm.crushed.color]}'s ${PIECE[sm.crushed.type]}`;
-      frames.push({
-        fen,
-        snails: current,
-        crush: { square: sm.to, key: `${record.tick.ply}-${sm.color}` },
-        banner: {
-          text: sm.crushed.type === 'k' ? `💀 ${NAME[sm.color]}'s snail crushed ${victim}!` : `💥 ${NAME[sm.color]}'s snail crushed ${victim}!`,
-          tone: 'danger',
-        },
-        hold: TIMING.impact,
-      });
+      const crush = { square: sm.to, key: `${record.tick.ply}-${sm.color}` };
+      if (sm.crushed.type === 'k') {
+        // The impact lands first, then the screen drains to grey and SLIMED comes up.
+        frames.push({ fen, snails: current, crush, hold: TIMING.slide });
+        frames.push({ fen, snails: current, slimed: { victim: sm.crushed.color, by: sm.color }, hold: TIMING.slimed });
+      } else {
+        frames.push({
+          fen,
+          snails: current,
+          crush,
+          banner: { text: `💥 ${NAME[sm.color]}'s snail crushed ${victim}!`, tone: 'danger' },
+          hold: TIMING.impact,
+        });
+      }
     }
   }
   return frames;

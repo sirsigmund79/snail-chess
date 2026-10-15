@@ -94,6 +94,9 @@ A move that triggers the snails plays back as separate beats:
 4. Black's snail does the same.
 5. The board settles.
 
+If a snail crushes a king, the finale is a GTA "WASTED"-style **SLIMED** screen
+(`src/ui/SlimedOverlay.tsx`, lettering in the OFL-licensed Bangers font).
+
 The bot can think during playback but only moves once the board has settled. Click the board or
 press Space to skip. See `src/ui/usePlayback.ts`.
 
