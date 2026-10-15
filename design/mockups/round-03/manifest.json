@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "lang": "en",
+  "project": "Immortal Snail Chess",
+  "round": "03",
+  "nativeViewport": "390x844",
+  "brief": "The revised Paper layout in six colour and font combinations. Same structure in all: opponent and rules at the top, scoresheet above the board, the board just above Undo / Rules / New, and an icon-only countdown (three dots, then a snail).",
+  "candidates": [
+    {
+      "id": "paper",
+      "name": "Paper",
+      "concept": "Warm off-white, sand board, coral snails.",
+      "typography": "DM Sans 400/500/700",
+      "palette": [
+        "#f5f2ea",
+        "#2b2a27",
+        "#ebe5d8",
+        "#d4cab5",
+        "#e4573d"
+      ],
+      "traits": [
+        "One accent colour that only means snail",
+        "Board stays light enough for both piece colours"
+      ],
+      "source": "paper.html"
+    },
+    {
+      "id": "mint",
+      "name": "Mint & Graphite",
+      "concept": "Cool white and graphite, a fresh green for the snails.",
+      "typography": "Manrope 400/500/700",
+      "palette": [
+        "#f4f6f4",
+        "#22282a",
+        "#e8edea",
+        "#c3cec9",
+        "#14a37f"
+      ],
+      "traits": [
+        "One accent colour that only means snail",
+        "Board stays light enough for both piece colours"
+      ],
+      "source": "mint.html"
+    },
+    {
+      "id": "sorbet",
+      "name": "Sorbet",
+      "concept": "Peach paper, apricot board, raspberry snails.",
+      "typography": "Figtree 400/500/700",
+      "palette": [
+        "#fcf3ec",
+        "#3a2a2a",
+        "#f6e4d6",
+        "#e8c4a8",
+        "#c8325a"
+      ],
+      "traits": [
+        "One accent colour that only means snail",
+        "Board stays light enough for both piece colours"
+      ],
+      "source": "sorbet.html"
+    },
+    {
+      "id": "newsprint",
+      "name": "Newsprint",
+      "concept": "Grey newsprint and black ink, one signal blue. Move numbers in mono.",
+      "typography": "Inter 400/600/700, IBM Plex Mono for move numbers",
+      "palette": [
+        "#eeeeea",
+        "#141414",
+        "#e2e2dc",
+        "#bdbdb4",
+        "#2f5bea"
+      ],
+      "traits": [
+        "One accent colour that only means snail",
+        "Board stays light enough for both piece colours"
+      ],
+      "source": "newsprint.html"
+    },
+    {
+      "id": "parlour",
+      "name": "Parlour",
+      "concept": "Cream and olive like an old club board, burnt-orange snails, a serif for names.",
+      "typography": "Inter for UI, EB Garamond for headings",
+      "palette": [
+        "#f6f2e7",
+        "#2c2a22",
+        "#ebe6d3",
+        "#a9b28c",
+        "#c4541f"
+      ],
+      "traits": [
+        "One accent colour that only means snail",
+        "Board stays light enough for both piece colours"
+      ],
+      "source": "parlour.html"
+    },
+    {
+      "id": "night",
+      "name": "Night Moss",
+      "concept": "Dark for evening play; stone board stays light so both piece colours read; lemon snails.",
+      "typography": "Figtree 400/500/700",
+      "palette": [
+        "#1d211e",
+        "#eef0e8",
+        "#cfd2c3",
+        "#9ba48f",
+        "#f2c94c"
+      ],
+      "traits": [
+        "One accent colour that only means snail",
+        "Board stays light enough for both piece colours"
+      ],
+      "source": "night.html"
+    }
+  ]
+}
