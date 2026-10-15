@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "lang": "en",
+  "project": "Immortal Snail Chess",
+  "brief": "The game screen at one tense moment: move 9, you are White against the Medium bot, the snails move after Black's next move, your snail is about to crush Black's bishop and Black's snail is 2 squares from your king.",
+  "round": "01",
+  "nativeViewport": "1440x900",
+  "candidates": [
+    {
+      "id": "garden",
+      "name": "Garden Patio",
+      "concept": "A wet stone patio after rain: the board is the whole stage and you can see exactly where the snails have been and where they'll land next.",
+      "typography": "Fraunces 900 for names and the countdown headline (22–26px), Fraunces italic for emphasis, Inter 400/600 at 13–15px for everything else.",
+      "palette": ["#1d2625", "#4f6b2a", "#d58a3a", "#f3ecd8", "#c4bb9f"],
+      "traits": ["Centred board, no sidebar; players sit at opposite corners of the board", "Glistening slime trails show each snail's path", "Countdown is a three-chamber shell spiral; move log is a ribbon along the bottom"],
+      "source": "garden.html"
+    },
+    {
+      "id": "field-notes",
+      "name": "Field Notes",
+      "concept": "A naturalist's notebook: the snails are specimens under study, the board is an ink plate and the game is written up as an observation log.",
+      "typography": "EB Garamond 600–700 for headings and moves (19–30px), Garamond italic for annotations, IBM Plex Mono 12–13px for coordinates and Latin labels.",
+      "palette": ["#efe4cc", "#3b2a1a", "#b5432b", "#8a8070"],
+      "traits": ["Two-page spread: board plate on the left, observation log on the right", "Pen-and-ink snails with red-pencil rings and arrows to their next squares", "Snail steps are written into the log as italic field notes"],
+      "source": "field-notes.html"
+    },
+    {
+      "id": "b-movie",
+      "name": "Attack of the Immortal Snail",
+      "concept": "A 1950s B-movie horror poster: the countdown is the tagline, the board is a tilted stage and the snails are the monsters.",
+      "typography": "Bangers at 106px for the tagline and 28px in the starbursts, Oswald 500/700 tracked uppercase for credits, buttons and labels.",
+      "palette": ["#2a1238", "#a6e22e", "#e0322b", "#f4ead2", "#8f1c17"],
+      "traits": ["Giant tagline counts down to the next snail move", "Board tilted in perspective with glowing, oversized snail monsters", "Threats shouted in starbursts; move log rolls as the poster credits"],
+      "source": "b-movie.html"
+    }
+  ]
+}

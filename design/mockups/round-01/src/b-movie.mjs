@@ -1,0 +1,100 @@
+// Direction 3 — Attack of the Immortal Snail: a 1950s B-movie horror poster. The countdown is
+// the tagline, the board is a tilted stage, the snails are the monsters, the move log rolls as credits.
+import { cells, LOG, SNAILS, STATUS } from './scene.mjs';
+
+const SQ = 66;
+const TILT = 34;
+
+function stage() {
+  const squares = cells().map((c) => {
+    const cls = ['sq', c.light ? 'l' : 'd', c.target ? `t t-${c.target}` : ''].join(' ');
+    let fig = '';
+    if (c.piece) fig = `<span class="fig pc ${c.piece.color}">${c.piece.glyph}</span>`;
+    if (c.snail) fig = `<span class="fig monster m-${c.snail}">🐌</span>`;
+    return `<div class="${cls}">${fig}</div>`;
+  }).join('');
+  return `<div class="stage"><div class="board">${squares}</div></div>`;
+}
+
+const credits = () =>
+  LOG.map((m) => {
+    const sn = (m.snails ?? []).map((s) => `<em${s.crushed ? ' class="kill"' : ''}>🐌 ${s.who} snail ${s.from}–${s.to}${s.crushed ? ` crushes ${s.crushed.replace("White's ", 'a ')}` : ''}</em>`).join('');
+    return `<span><b>${m.n}</b> ${m.w} ${m.b}</span>${sn}`;
+  }).join('') + '<span class="you"><b>9</b> your move</span>';
+
+export default function render() {
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Immortal Snail Chess — Attack of the Immortal Snail</title>
+<style>
+@font-face{font-family:Bangers;src:url(fonts/bangers-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:Oswald;font-weight:500;src:url(fonts/oswald-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:Oswald;font-weight:700;src:url(fonts/oswald-latin-700-normal.woff2) format('woff2')}
+:root{--toxic:#a6e22e;--toxic-d:#5d8a10;--red:#e0322b;--red-d:#8f1c17;--bruise:#2a1238;--bruise-2:#4a1d4f;--bone:#f4ead2;--ink:#14060f}
+*{box-sizing:border-box;margin:0}
+body{height:100vh;overflow:hidden;color:var(--bone);font:500 16px/1.4 Oswald,Impact,sans-serif;
+  background:
+    radial-gradient(circle,rgba(0,0,0,.28) 1.2px,transparent 1.6px) 0 0/7px 7px,
+    radial-gradient(ellipse 55% 45% at 50% 62%,rgba(166,226,46,.28),transparent 70%),
+    radial-gradient(ellipse 80% 60% at 50% 0%,rgba(224,50,43,.55),transparent 70%),
+    linear-gradient(180deg,#3a1440,var(--bruise) 45%,#170818);
+}
+.poster{height:100vh;display:grid;grid-template-rows:auto 1fr auto;padding:22px 40px 18px;position:relative}
+.top{display:flex;justify-content:space-between;align-items:center;font:700 14px Oswald;letter-spacing:.14em;text-transform:uppercase;color:rgba(244,234,210,.75)}
+.top nav{display:flex;gap:10px}
+.top button{font:700 13px Oswald;letter-spacing:.12em;text-transform:uppercase;color:var(--bone);background:transparent;border:2px solid rgba(244,234,210,.55);padding:6px 14px;transform:skewX(-8deg)}
+.tag{text-align:center;margin-top:22px}
+.tag h1{font:400 106px/.9 Bangers,Impact,sans-serif;letter-spacing:.02em;color:var(--toxic);
+  -webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:7px 7px 0 var(--red),12px 12px 0 rgba(0,0,0,.4);transform:rotate(-2deg)}
+.tag p{margin-top:12px;font:700 20px Oswald;letter-spacing:.2em;text-transform:uppercase}
+.tag p b{color:var(--toxic)}
+
+.middle{position:relative;display:grid;place-items:center}
+.stage{perspective:1100px;margin-top:-30px}
+.board{display:grid;grid-template-columns:repeat(8,${SQ}px);grid-template-rows:repeat(8,${SQ}px);transform:rotateX(${TILT}deg);transform-style:preserve-3d;
+  outline:10px solid var(--ink);box-shadow:0 0 0 14px var(--red-d),0 60px 80px rgba(0,0,0,.6),0 0 120px rgba(166,226,46,.25)}
+.sq{position:relative;transform-style:preserve-3d}
+.sq.l{background:var(--bone)}
+.sq.d{background:var(--red-d)}
+.t{box-shadow:inset 0 0 0 5px var(--toxic),inset 0 0 30px rgba(166,226,46,.8)}
+.fig{position:absolute;left:50%;bottom:22%;transform-origin:50% 100%;transform:translateX(-50%) rotateX(-${TILT}deg);line-height:1}
+.pc{font:58px/1 "DejaVu Sans","Segoe UI Symbol","Apple Symbols",serif}
+.pc.w{color:var(--bone);-webkit-text-stroke:2px var(--ink);text-shadow:4px 3px 0 rgba(0,0,0,.35)}
+.pc.b{color:var(--ink);-webkit-text-stroke:1px #000;text-shadow:3px 3px 0 rgba(224,50,43,.55)}
+.monster{font-size:90px;bottom:6%;filter:drop-shadow(0 0 14px rgba(166,226,46,.9)) drop-shadow(8px 10px 0 rgba(0,0,0,.45));z-index:5}
+.m-w{transform:translateX(-50%) rotateX(-${TILT}deg) scaleX(-1)}
+
+.burst{position:absolute;width:260px;height:260px;display:grid;place-items:center;text-align:center;padding:62px;
+  font:400 28px/1 Bangers,Impact,sans-serif;letter-spacing:.03em;color:var(--ink);
+  clip-path:polygon(50% 0,61% 18%,82% 8%,79% 31%,100% 35%,84% 52%,98% 70%,76% 72%,78% 95%,58% 83%,45% 100%,38% 80%,16% 92%,20% 69%,0 62%,17% 47%,4% 26%,26% 26%,26% 4%,42% 17%)}
+.burst.yours{left:5%;top:2%;background:var(--toxic);transform:rotate(-8deg)}
+.burst.theirs{right:5%;bottom:8%;background:var(--red);color:var(--bone);transform:rotate(7deg)}
+.burst small{display:block;font:700 13px/1.2 Oswald;letter-spacing:.1em;text-transform:uppercase;margin-top:6px}
+
+.cast{text-align:center;border-top:2px solid rgba(244,234,210,.35);padding-top:12px}
+.billing{font:700 22px Oswald;letter-spacing:.12em;text-transform:uppercase}
+.billing i{font-style:normal;font-weight:500;font-size:15px;color:rgba(244,234,210,.7);letter-spacing:.18em;margin:0 6px}
+.billing .now{display:inline-block;margin-left:14px;padding:3px 12px;background:var(--toxic);color:var(--ink);transform:skewX(-8deg);font-size:17px}
+.roll{margin-top:8px;display:flex;flex-wrap:wrap;justify-content:center;gap:4px 16px;font:500 15px/1.5 Oswald;letter-spacing:.06em;color:rgba(244,234,210,.85)}
+.roll b{color:rgba(244,234,210,.55);font-weight:500;margin-right:3px}
+.roll em{font-style:normal;color:var(--toxic)}
+.roll em.kill{color:#ff7a6e}
+.roll .you{color:var(--toxic);font-weight:700}
+</style></head>
+<body><div class="poster">
+  <div>
+    <div class="top"><span>Immortal Snail Chess</span><nav><button>Undo</button><button>New game</button><button>Settings</button></nav></div>
+    <div class="tag"><h1>One move until the slime!</h1>
+      <p>The snails move after <b>Black's next move</b></p></div>
+  </div>
+  <div class="middle">
+    ${stage()}
+    <div class="burst yours">It's about to eat a bishop!<small>Your snail</small></div>
+    <div class="burst theirs">It's ${STATUS.yourKingDistance} squares from your king!<small>Black's snail</small></div>
+  </div>
+  <div class="cast">
+    <div class="billing">You <i>as</i> White <i>·</i> Snailfish <i>as</i> Black (medium) <i>·</i> and the immortal snails <span class="now">${STATUS.turn}</span></div>
+    <div class="roll">${credits()}</div>
+  </div>
+</div></body></html>`;
+}
