@@ -47,7 +47,7 @@ button{font:inherit;color:inherit;border:0;background:none}
 .dot-snail.active .shell,.dot-snail.active .foot,.dot-snail.active .horn,.dot-snail.active .spiral{stroke-width:2.6}
 .dot-snail.moving .shell{fill:var(--coral)}
 
-.board{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;border-top:5px solid var(--pink)}
+.board{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1}
 .sq{position:relative;display:grid;place-items:center;background:#fff}
 .sq.d{background:var(--hatch),#fff}
 .sq.snail-next{background:var(--coral)}
@@ -72,7 +72,7 @@ button{font:inherit;color:inherit;border:0;background:none}
 .sq.mated{box-shadow:inset 0 0 0 5px var(--ink)}
 .sq.mated::before{content:"#";position:absolute;top:1px;right:4px;font:800 13px Figtree;color:var(--ink);z-index:2}
 
-.result{position:fixed;z-index:20;left:50%;transform:translate(-50%,-50%);width:min(320px,calc(100% - 40px));background:#fff;border-radius:16px;border-top:6px solid var(--pink);
+.result{position:fixed;z-index:20;left:50%;transform:translate(-50%,-50%);width:min(320px,calc(100% - 40px));background:#fff;border-radius:16px;
   box-shadow:0 0 0 2px var(--ink),0 18px 40px rgba(0,0,0,.25);padding:14px 16px 14px;text-align:center}
 .result .emblem{width:56px;height:56px;margin:0 auto 4px;display:grid;place-items:center;border-radius:14px}
 .result .emblem.snailwin{background:var(--coral)}
@@ -99,7 +99,7 @@ button{font:inherit;color:inherit;border:0;background:none}
 .toolbar svg{width:24px;height:24px}
 
 .scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:10}
-.sheet{z-index:11;position:fixed;left:0;right:0;bottom:0;max-width:430px;margin:0 auto;background:#fff;border-radius:18px 18px 0 0;border-top:5px solid var(--pink);padding:10px 22px calc(env(safe-area-inset-bottom) + 18px)}
+.sheet{z-index:11;position:fixed;left:0;right:0;bottom:0;max-width:430px;margin:0 auto;background:#fff;border-radius:18px 18px 0 0;padding:10px 22px calc(env(safe-area-inset-bottom) + 18px)}
 .grip{width:38px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 12px}
 .sheet-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .head-snail{width:44px;height:44px;flex:none}

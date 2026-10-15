@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 import type { PromotionPieceOption, Square as BoardSquare } from 'react-chessboard/dist/chessboard/types';
 import { findKing, parseFen, sqToCoords } from '../engine/fen';
+import { legalMoves } from '../engine/boardValidator';
 import { nextSnailStep } from '../engine/snailEngine';
+import { ACTIVE_THEME as T } from './theme';
 import type { Color, MoveInput, MoveRecord, Square } from '../engine/types';
 import type { Frame } from './usePlayback';
 
@@ -29,6 +31,7 @@ function place(sq: Square, orientation: 'white' | 'black') {
 
 export function SnailBoard({ frame, lastMove, orientation, interactive, imminent, busy, onSkip, onMove }: Props) {
   const [selected, setSelected] = useState<Square | null>(null);
+  const [dragFrom, setDragFrom] = useState<Square | null>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
   const { board, turn: turnColor } = useMemo(() => parseFen(frame.fen), [frame.fen]);
 
@@ -60,15 +63,42 @@ export function SnailBoard({ frame, lastMove, orientation, interactive, imminent
     return { color, square: snail.square, next, faceRight: movesRightOnScreen };
   });
 
+  // Squares the selected (or dragged) piece can legally reach, snail rules included.
+  const activeFrom = dragFrom ?? selected;
+  const legalTargets = useMemo(() => {
+    if (!activeFrom || !interactive) return new Set<Square>();
+    return new Set(legalMoves(frame.fen, frame.snails).filter((m) => m.from === activeFrom).map((m) => m.to as Square));
+  }, [activeFrom, interactive, frame.fen, frame.snails]);
+
+  const isDark = (sq: Square) => {
+    const [f, r] = sqToCoords(sq);
+    return (f + r) % 2 === 0;
+  };
+  const snailNext = snails.map((s) => s.next).filter((sq, i) => sq !== snails[i].square);
+  const snailNextKey = snailNext.join(',');
+
   const squareStyles = useMemo(() => {
     const out: Partial<Record<Square, Record<string, string | number>>> = {};
     if (lastMove) {
-      out[lastMove.from] = { backgroundColor: 'rgba(250, 204, 21, 0.35)' };
-      out[lastMove.to] = { backgroundColor: 'rgba(250, 204, 21, 0.45)' };
+      out[lastMove.from] = { backgroundColor: T.lastMove };
+      out[lastMove.to] = { backgroundColor: T.lastMove };
     }
-    if (selected) out[selected] = { backgroundColor: 'rgba(16, 185, 129, 0.45)' };
+    for (const sq of snailNextKey ? (snailNextKey.split(',') as Square[]) : []) {
+      out[sq] = { backgroundColor: isDark(sq) ? T.snailDark : T.snail };
+    }
+    for (const sq of legalTargets) {
+      const onSnailPath = snailNextKey.split(',').includes(sq);
+      out[sq] = {
+        backgroundColor: isDark(sq) ? T.legalDark : T.legal,
+        // A legal square the snail lands on next keeps a snail-coloured warning ring.
+        ...(onSnailPath ? { boxShadow: `inset 0 0 0 4px ${T.snail}` } : {}),
+      };
+    }
+    if (activeFrom) {
+      out[activeFrom] = { backgroundColor: isDark(activeFrom) ? T.legalDark : T.legal, boxShadow: `inset 0 0 0 4px ${T.selectedRing}` };
+    }
     return out;
-  }, [lastMove, selected]);
+  }, [lastMove, legalTargets, activeFrom, snailNextKey]);
 
   const tryMove = (from: Square, to: Square, promotion?: MoveInput['promotion']) => {
     setSelected(null);
@@ -89,9 +119,16 @@ export function SnailBoard({ frame, lastMove, orientation, interactive, imminent
         boardOrientation={orientation}
         arePiecesDraggable={interactive}
         isDraggablePiece={({ piece }) => interactive && piece[0] === turnColor}
+        onPieceDragBegin={(_, from) => setDragFrom(from as Square)}
+        onPieceDragEnd={() => setDragFrom(null)}
+        customLightSquareStyle={{ backgroundColor: T.light }}
+        customDarkSquareStyle={{ backgroundColor: T.dark }}
         customSquareStyles={squareStyles as Record<BoardSquare, Record<string, string | number>>}
         // Promotions go through onPromotionPieceSelect instead.
-        onPieceDrop={(from, to) => tryMove(from as Square, to as Square)}
+        onPieceDrop={(from, to) => {
+          setDragFrom(null);
+          return tryMove(from as Square, to as Square);
+        }}
         onPromotionPieceSelect={(piece?: PromotionPieceOption, from?: BoardSquare, to?: BoardSquare) => {
           if (!piece || !from || !to) return false;
           return tryMove(from as Square, to as Square, piece[1].toLowerCase() as MoveInput['promotion']);

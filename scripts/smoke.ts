@@ -30,10 +30,26 @@ const move = async (from: string, to: string) => {
   await click(to);
 };
 
+const logs: string[] = [];
+page.on('console', (m) => logs.push(m.text()));
+const darkSquareColour = () =>
+  page.evaluate(() => getComputedStyle(document.querySelector('[data-square="a1"]') as Element).backgroundColor);
+
 const shot = (name: string) => page.screenshot({ path: `${process.env.SMOKE_DIR ?? '.'}/smoke-${name}.png` });
 const snailAt = (c: 'w' | 'b') => page.getAttribute(`[data-testid="snail-piece-${c}"]`, 'data-square');
 
 await page.goto(url);
+await page.waitForSelector('[data-square="a1"]');
+// Theme: paper grey by default, with the unlock hinted only in the console.
+if ((await darkSquareColour()) !== 'rgb(227, 227, 227)') throw new Error(`expected paper-grey board, got ${await darkSquareColour()}`);
+if (!logs.some((l) => l.includes('?hyper'))) throw new Error('missing console hint');
+if (await page.locator('text=hyper').count()) throw new Error('the hyper hint must not appear on the page');
+// Selecting a piece lights its legal squares in blue.
+await click('e2');
+const e4 = await page.evaluate(() => getComputedStyle(document.querySelector('[data-square="e4"] > div') as Element).backgroundColor);
+if (e4 !== 'rgb(46, 155, 255)') throw new Error(`expected e4 highlighted as legal, got ${e4}`);
+await click('e2');
+console.log('theme: paper grey default, console hint present, legal squares highlighted');
 await page.selectOption('select >> nth=0', 'hotseat');
 for (const [f, t] of [['e2', 'e4'], ['e7', 'e5'], ['g1', 'f3'], ['b8', 'c6'], ['f1', 'c4']]) {
   await move(f, t);
@@ -100,6 +116,15 @@ for (let i = 0; i < 4; i++) {
 }
 if (new Set(replies).size < 2) errors.push(`bot replies did not vary: ${replies.join(', ')}`);
 await shot('bot');
+
+// Hidden theme: ?hyper switches to Bubblegum Bass.
+await page.goto(url.replace(/\/?$/, '/') + '?hyper');
+await page.waitForSelector('[data-square="a1"]');
+const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+if (bg !== 'rgb(255, 211, 239)' || (await darkSquareColour()) !== 'rgb(255, 143, 210)') throw new Error(`?hyper did not apply bubblegum (${bg})`);
+if (!logs.some((l) => l.includes('Bubblegum Bass unlocked'))) throw new Error('missing unlock log');
+await shot('hyper');
+console.log('theme: ?hyper unlocks Bubblegum Bass');
 await browser.close();
 if (!stockfishLoaded) errors.push('Stockfish WASM was never fetched');
 if (errors.length) {

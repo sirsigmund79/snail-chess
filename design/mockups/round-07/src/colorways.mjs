@@ -4,7 +4,7 @@
 const theme = ({ bg, ink, soft, line, legal, snail, light, dark, rim, brand = null, extra = '', darkUi = false }) => `
 :root{--ink:${ink};--soft:${soft};--line:${line};--blue:${legal};--coral:${snail}}
 body{background:${bg}}
-.board{--ink:#160016;border-top:6px solid transparent;border-image:${rim} 1}
+.board{--ink:#160016}
 .sq{background:${light}}
 .sq.d{background:${dark}}
 .sq.snail-next{background:var(--coral)}

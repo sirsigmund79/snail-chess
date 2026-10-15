@@ -84,6 +84,14 @@ looks at 8 Stockfish lines during the first 8 plies. Forced wins and escapes are
 blocker is only added for a snail while the side to move has room. Otherwise the snail square is
 left empty, which is safe because the root is already restricted to snail-legal moves.
 
+## Themes
+
+The board defaults to **Paper grey**: white and #e3e3e3 squares. Selecting or dragging a piece
+lights its legal squares in blue, and the squares the snails land on next are coral (`src/ui/theme.ts`).
+
+There's a hidden **Bubblegum Bass** theme, unlocked by a `hyper` URL parameter (`?hyper`,
+`?hyper=1` or `?theme=hyper`). The only hint is a message in the browser's developer console.
+
 ## Snail playback
 
 A move that triggers the snails plays back as separate beats:

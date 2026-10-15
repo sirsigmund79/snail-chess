@@ -70,7 +70,7 @@ function SnailCountdown(props: {
         ))}
       </ul>
       <p className="mt-2 text-xs text-stone-500">
-        Outlined squares show each snail's next step. Snails crush whatever is there, and nothing can enter or pass
+        Coloured squares show where each snail steps next. Snails crush whatever is there, and nothing can enter or pass
         through a snail.
       </p>
     </div>
