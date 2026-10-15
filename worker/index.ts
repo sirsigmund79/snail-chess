@@ -3,7 +3,7 @@
  * Assets without running this code; only /api/* reaches it (see run_worker_first in
  * wrangler.jsonc). Each room code maps to one Durable Object that holds that game.
  */
-// Deployed by Workers Builds on every push to main.
+// Deployed by Workers Builds (Cloudflare) on every push to main.
 import { isRoomCode } from '../src/network/roomCode';
 
 export { Room } from './room';
