@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "lang": "en",
+  "project": "Immortal Snail Chess",
+  "brief": "Phone game screen, subtle and Zach Gage-inspired: flat, calm, one accent, controls in thumb reach. Same moment as round 01: move 9, you are White vs the Medium bot, the snails move after Black's next move, your snail is about to crush Black's bishop and Black's snail is 2 squares from your king.",
+  "round": "02",
+  "nativeViewport": "390x844",
+  "candidates": [
+    {
+      "id": "paper",
+      "name": "Paper",
+      "concept": "The most familiar layout made very quiet: warm paper, a flat board and one coral colour that only ever means snail danger.",
+      "typography": "DM Sans 700 for names (16px), 500 for buttons (15px), 400 for status and moves (13–15px).",
+      "palette": ["#f5f2ea", "#2b2a27", "#d4cab5", "#e4573d"],
+      "traits": ["Opponent above, you below the board, each with their snail distance", "Countdown is three dots under the board", "Big Undo / Moves / New buttons at the bottom"],
+      "source": "paper.html"
+    },
+    {
+      "id": "big-number",
+      "name": "Big Number",
+      "concept": "The countdown is the headline: one huge numeral tells you how many moves until the snails move, and the board shows exactly where they'll go.",
+      "typography": "Manrope 800 at 112px for the numeral, 700 at 22px for its caption, 500 at 13–15px for everything else.",
+      "palette": ["#e6ece6", "#1f3b3a", "#c9d6cf", "#ef9a2b"],
+      "traits": ["Giant move counter above the board", "Faint dotted paths for where snails have been, amber hops for where they go next", "Moves live in a bottom sheet with the main buttons"],
+      "source": "big-number.html"
+    },
+    {
+      "id": "reach",
+      "name": "Reach",
+      "concept": "The board explains the danger by itself: a soft tint marks every square each snail can reach next, edge to edge on the screen.",
+      "typography": "Figtree 800 for the numbers and title (21–26px), 500 for labels and tabs (12–15px).",
+      "palette": ["#f0eef6", "#2f2648", "#6e4fe0", "#d6466b"],
+      "traits": ["Edge-to-edge board with tinted snail reach zones", "Two cards spell out both king distances with small meters", "Bottom tab bar: Board, Moves, Undo, New"],
+      "source": "reach.html"
+    }
+  ]
+}
