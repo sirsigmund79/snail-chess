@@ -82,7 +82,7 @@
   .snail-body, .snail-target-imminent, .countdown-urgent, .snail-crush, .snail-banner { animation: none; }
 }
 
-/* --- SLIMED (a slimy take on GTA's "WASTED") ---------------------------- */
+/* --- SLIMED (a slimy take on GTA's "WASTED"; lettering is a pre-rendered Pricedown image) --- */
 .slimed-world {
   filter: grayscale(1) contrast(1.15) brightness(0.72);
   transition: filter 1100ms ease-out;
@@ -130,24 +130,17 @@
   transform: scale(1.35);
   animation: slimed-word-in 900ms cubic-bezier(0.16, 1, 0.3, 1) 650ms forwards;
 }
-.slimed-drips {
-  position: absolute;
-  inset-inline: 6%;
-  top: 78%;
-  height: 0;
-}
-.slimed-drip {
-  position: absolute;
-  top: 0;
-  border-radius: 0 0 999px 999px;
-  background: linear-gradient(90deg, #6fb31c, #a8ee3a 45%, #6fb31c);
-  box-shadow: inset -2px 0 0 rgba(14, 36, 0, 0.35);
-  transform-origin: top;
-  transform: scaleY(0);
-  animation: slimed-drip 1.8s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+.slimed-img {
+  position: relative;
+  display: block;
+  width: clamp(15rem, 74vw, 30rem);
+  height: auto;
+  opacity: 0;
+  transform: scale(1.35);
+  animation: slimed-word-in 900ms cubic-bezier(0.16, 1, 0.3, 1) 650ms forwards;
 }
 .slimed-caption {
-  margin-top: clamp(3.5rem, 9vh, 5.5rem);
+  margin-top: clamp(0.25rem, 1.5vh, 0.75rem);
   font: 600 clamp(0.85rem, 2.4vw, 1.1rem) / 1.3 system-ui, sans-serif;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -165,13 +158,9 @@
 @keyframes slimed-word-in {
   to { opacity: 1; transform: scale(1); }
 }
-@keyframes slimed-drip {
-  60% { transform: scaleY(1); }
-  to { transform: scaleY(1.12); }
-}
 @media (prefers-reduced-motion: reduce) {
   .slimed-world, .slimed-world #snail-board-wrap { transition: none; }
   .slimed-world #snail-board-wrap { transform: none; }
-  .slimed-band, .slimed-word, .slimed-caption, .slimed-drip { animation: none; opacity: 1; transform: none; }
+  .slimed-band, .slimed-word, .slimed-img, .slimed-caption { animation: none; opacity: 1; transform: none; }
   .slimed-overlay { animation: none; background: rgba(28, 25, 23, 0.35); }
 }

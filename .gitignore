@@ -4,3 +4,7 @@ dist
 .DS_Store
 # Copied from node_modules by scripts/copy-stockfish.mjs
 public/stockfish/
+
+# Licensed desktop fonts used only to pre-render images (never commit the font files)
+fonts-local/
+*.otf

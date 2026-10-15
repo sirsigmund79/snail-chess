@@ -15,9 +15,10 @@ const resultCard = (r) => `<div class="dim"></div><section class="result" style=
   <div class="row"><button>Review</button><button>New game</button></div>
 </section>`;
 
-const DRIPS = [[6, 12, 40], [20, 9, 26], [34, 15, 54], [52, 10, 32], [64, 14, 46], [79, 9, 28], [91, 13, 42]];
+// Uses the pre-rendered Pricedown image (copied in by build.ts when public/slimed.png exists),
+// otherwise a Bangers stand-in.
 const slimedOverlay = (o) => `<div class="slimed" role="alert"><div class="band"></div><div>
-  <div class="word">SLIMED<span class="drips">${DRIPS.map(([l, w, h]) => `<span class="drip" style="left:${l}%;width:${w}px;height:${h}px"></span>`).join('')}</span></div>
+  ${o.image ? `<img class="word-img" src="${o.image}" alt="Slimed">` : '<div class="word">slimed</div>'}
   <div class="cap">${o.caption}</div></div></div>`;
 
 export const RULES = [
@@ -182,10 +183,9 @@ button{font:inherit;color:inherit;border:0;background:none}
 .slimed-world{filter:grayscale(1) contrast(1.1) brightness(.8)}
 .slimed{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(28,25,23,.3)}
 .slimed .band{position:absolute;left:0;right:0;top:50%;height:200px;transform:translateY(-50%);background:linear-gradient(180deg,transparent,rgba(0,0,0,.74) 18%,rgba(0,0,0,.74) 82%,transparent)}
-.slimed .word{position:relative;font:400 92px/.9 Bangers,Impact,sans-serif;letter-spacing:.04em;color:#9be22d;-webkit-text-stroke:5px #0e2400;paint-order:stroke fill;text-shadow:0 4px 0 #4f8a0b,0 8px 12px rgba(0,0,0,.6);text-align:center}
-.slimed .drips{position:absolute;left:8%;right:8%;top:80%;height:0}
-.slimed .drip{position:absolute;top:0;border-radius:0 0 999px 999px;background:linear-gradient(90deg,#6fb31c,#a8ee3a 45%,#6fb31c)}
-.slimed .cap{position:relative;margin-top:44px;font:800 13px Figtree;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.88);text-align:center}
+.slimed .word{position:relative;text-transform:uppercase;font:400 92px/.9 Bangers,Impact,sans-serif;letter-spacing:.04em;color:#9be22d;-webkit-text-stroke:5px #0e2400;paint-order:stroke fill;text-shadow:0 4px 0 #4f8a0b,0 8px 12px rgba(0,0,0,.6);text-align:center}
+.slimed .word-img{position:relative;display:block;width:min(330px,86vw);height:auto;margin:0 auto}
+.slimed .cap{position:relative;margin-top:22px;font:800 13px Figtree;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.88);text-align:center}
 
 .toolbar{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
 .toolbar button{height:58px;display:grid;justify-items:center;align-content:center;gap:2px;font-weight:700;font-size:12px}

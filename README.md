@@ -95,7 +95,11 @@ A move that triggers the snails plays back as separate beats:
 5. The board settles.
 
 If a snail crushes a king, the finale is a GTA "WASTED"-style **SLIMED** screen
-(`src/ui/SlimedOverlay.tsx`, lettering in the OFL-licensed Bangers font).
+(`src/ui/SlimedOverlay.tsx`). The lettering is `public/slimed.png`, pre-rendered in Pricedown (GTA's
+font) with `npx tsx scripts/render-slimed.ts "path/to/Pricedown Bl.otf"`. Pricedown's free Typodermic
+Desktop License doesn't allow embedding the font in an app or sharing the file, only static images,
+so only the PNG is committed (`*.otf` and `fonts-local/` are gitignored). Until the image exists the
+screen falls back to Bangers.
 
 The bot can think during playback but only moves once the board has settled. Click the board or
 press Space to skip. See `src/ui/usePlayback.ts`.
