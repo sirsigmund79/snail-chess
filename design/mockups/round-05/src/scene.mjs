@@ -68,3 +68,25 @@ function cell(f, rank, piece) {
   const trail = Object.entries(SNAILS).find(([, s]) => s.trail.includes(sq))?.[0] ?? null;
   return { sq, file: f, rank, light: (f + rank) % 2 === 1, piece, snail, target, trail };
 }
+
+/** Cells for any position: { fen, snails: { w: { square, next? }, b: { square, next? } } }. */
+export function cellsOf({ fen, snails, marks = {} }) {
+  const rows = fen.split(' ')[0].split('/');
+  const out = [];
+  rows.forEach((row, i) => {
+    const rank = 8 - i;
+    let f = 0;
+    const push = (piece) => {
+      const sq = FILES[f] + rank;
+      const snail = ['w', 'b'].find((c) => snails[c]?.square === sq) ?? null;
+      const target = ['w', 'b'].find((c) => snails[c]?.next === sq) ?? null;
+      out.push({ sq, file: f, rank, light: (f + rank) % 2 === 1, piece, snail, target, mark: marks[sq] ?? null });
+      f++;
+    };
+    for (const ch of row) {
+      if (/\d/.test(ch)) for (let k = 0; k < Number(ch); k++) push(null);
+      else push({ color: ch === ch.toUpperCase() ? 'w' : 'b', type: ch.toLowerCase(), glyph: GLYPH[ch.toLowerCase()] + '︎' });
+    }
+  });
+  return out;
+}

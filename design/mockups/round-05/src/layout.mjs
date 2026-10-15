@@ -8,6 +8,18 @@ import { cells, LOG } from './scene.mjs';
 import { piece } from '../../round-02/src/pieces.mjs';
 import { snail } from '../../round-03/src/layout.mjs';
 
+const resultCard = (r) => `<div class="dim"></div><section class="result" style="top:${r.top ?? '44%'}" role="dialog" aria-label="${r.title}">
+  <div class="emblem ${r.kind}">${r.kind === 'snailwin' ? snail('b', 'emblem-snail') : piece('w', 'k')}</div>
+  <h3>${r.title}</h3><p>${r.line}</p><p class="meta">${r.meta}</p>
+  <button class="primary">Rematch</button>
+  <div class="row"><button>Review</button><button>New game</button></div>
+</section>`;
+
+const DRIPS = [[6, 12, 40], [20, 9, 26], [34, 15, 54], [52, 10, 32], [64, 14, 46], [79, 9, 28], [91, 13, 42]];
+const slimedOverlay = (o) => `<div class="slimed" role="alert"><div class="band"></div><div>
+  <div class="word">SLIMED<span class="drips">${DRIPS.map(([l, w, h]) => `<span class="drip" style="left:${l}%;width:${w}px;height:${h}px"></span>`).join('')}</span></div>
+  <div class="cap">${o.caption}</div></div></div>`;
+
 export const RULES = [
   ['Snails hunt the kings.', 'Each snail takes the most direct path to the opposite king.'],
   ['Every three moves, they step.', 'Each snail moves one square closer.'],
@@ -24,10 +36,11 @@ const icon = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
 };
 
-function board({ selected = null, legal = [] }) {
-  return cells().map((c) => {
+function board({ cells: list, selected = null, legal = [] }) {
+  return list.map((c) => {
     const cls = ['sq', c.light ? 'l' : 'd'];
     if (c.target) cls.push('snail-next');
+    if (c.mark) cls.push(c.mark);
     if (legal.includes(c.sq)) cls.push('legal');
     if (selected === c.sq) cls.push('sel');
     const inner = c.snail ? snail(c.snail, 'snail board-snail') : c.piece ? piece(c.piece.color, c.piece.type) : '';
@@ -35,21 +48,21 @@ function board({ selected = null, legal = [] }) {
   }).join('');
 }
 
-const strip = () =>
-  LOG.flatMap((m) => [
+const strip = (log, now) =>
+  log.flatMap((m) => [
     `<span class="mv"><b>${m.n}.</b>${m.w}</span>`,
-    `<span class="mv">${m.b}</span>`,
+    ...(m.b ? [`<span class="mv">${m.b}</span>`] : []),
     ...(m.snails ? [`<span class="mv sn">${snail('w', 'tiny')}</span>`] : []),
-  ]).join('') + '<span class="mv now"><b>9.</b>…</span>';
+  ]).join('') + (now ? `<span class="mv now">${now}</span>` : '');
 
 /**
  * Move dots for one player: `done` of their 3 moves this cycle are played; `active` marks the one
- * being played now. `snail` adds the snail after the dots (Black's bar), coral and bold when it's
- * the snails' move.
+ * being played now. `snail` adds that player's snail after the dots, coral and bold only on the
+ * snails' move.
  */
 const dots = ({ done, active, snail: withSnail = false, snailsMoving = false, label }) =>
   `<div class="dots" role="img" aria-label="${label}">${[0, 1, 2]
-    .map((i) => `<span class="dot${i < done ? ' on' : ''}${i === active ? ' active' : ''}"></span>`).join('')}${withSnail ? snail('w', `dot-snail${snailsMoving ? ' active moving' : ''}`) : ''}</div>`;
+    .map((i) => `<span class="dot${i < done ? ' on' : ''}${i === active ? ' active' : ''}"></span>`).join('')}${withSnail ? snail(withSnail, `dot-snail${snailsMoving ? ' active moving' : ''}`) : ''}</div>`;
 
 const bar = ({ name, sub, avatar, you = false, turn = false, indicator }) => `<section class="pbar${you ? ' you' : ''}">
   <div class="av">${avatar}</div>
@@ -62,13 +75,21 @@ const sheet = () => `<div class="scrim"></div><section class="sheet" role="dialo
   <header class="sheet-head">${snail('w', 'head-snail')}<div><h2>Immortal Snail Chess</h2><p>How to play</p></div></header>
   <ol>${RULES.map(([h, p]) => `<li><b>${h}</b> ${p}</li>`).join('')}</ol><button class="done">Got it</button></section>`;
 
-export function render({ state = 'idle', legal = [] } = {}) {
-  const moving = state === 'snails';
+/** The default view: the round-05 mock position (ply 16, White to move). */
+export const DEFAULT_VIEW = {
+  cells: cells(),
+  log: LOG,
+  now: '<b>9.</b>…',
+  dots: { w: { done: 2, active: 2 }, b: { done: 2, active: -1 }, snailsMoving: false },
+  yourTurn: true,
+};
+
+export function render({ state = 'idle', legal = [], view = DEFAULT_VIEW } = {}) {
+  const moving = state === 'snails' || view.dots.snailsMoving;
   const selected = state === 'selected' ? 'c4' : null;
-  // Ply 16, White to move: both sides have played 2 of 3 moves this cycle; White's 3rd is active.
-  // 'snails': Black has just played its 3rd move, so the snails are moving.
-  const whiteDots = moving ? { done: 3, active: -1 } : { done: 2, active: 2 };
-  const blackDots = moving ? { done: 3, active: -1 } : { done: 2, active: -1 };
+  const dw = state === 'snails' ? { done: 3, active: -1 } : view.dots.w;
+  const db = state === 'snails' ? { done: 3, active: -1 } : view.dots.b;
+  const yourTurn = state !== 'snails' && view.yourTurn;
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Immortal Snail Chess — ${state}</title>
@@ -138,6 +159,34 @@ button{font:inherit;color:inherit;border:0;background:none}
 .s-w .spiral{stroke:var(--ink)}
 .s-b .spiral{stroke:#fff}
 
+.sq.crushed{background:var(--coral)}
+.sq.crushed.d{background:var(--hatch),var(--coral)}
+.sq.mated{box-shadow:inset 0 0 0 5px var(--ink)}
+.sq.mated::before{content:"#";position:absolute;top:1px;right:4px;font:800 13px Figtree;color:var(--ink);z-index:2}
+
+.result{position:fixed;z-index:20;left:50%;transform:translate(-50%,-50%);width:min(320px,calc(100% - 40px));background:#fff;border-radius:16px;border-top:6px solid var(--pink);
+  box-shadow:0 0 0 2px var(--ink),0 18px 40px rgba(0,0,0,.25);padding:14px 16px 14px;text-align:center}
+.result .emblem{width:56px;height:56px;margin:0 auto 4px;display:grid;place-items:center;border-radius:14px}
+.result .emblem.snailwin{background:var(--coral)}
+.result .emblem.mate{background:var(--blue)}
+.result .emblem svg{width:46px;height:46px}
+.result h3{font:800 28px/1.1 Figtree;letter-spacing:-.01em;margin-top:4px}
+.result p{font-weight:700;color:#555;margin-top:4px}
+.result .meta{font-weight:700;color:var(--soft);font-size:13px;margin-top:6px}
+.result .primary{width:100%;height:50px;margin-top:12px;border-radius:12px;background:var(--ink);color:#fff;font-weight:800;font-size:16px}
+.result .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.result .row button{height:46px;border-radius:12px;box-shadow:inset 0 0 0 2px var(--ink);font-weight:800}
+.dim{position:fixed;inset:0;background:rgba(255,255,255,.55);z-index:19}
+
+@font-face{font-family:Bangers;src:url(fonts/bangers-latin-400-normal.woff2) format('woff2')}
+.slimed-world{filter:grayscale(1) contrast(1.1) brightness(.8)}
+.slimed{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(28,25,23,.3)}
+.slimed .band{position:absolute;left:0;right:0;top:50%;height:200px;transform:translateY(-50%);background:linear-gradient(180deg,transparent,rgba(0,0,0,.74) 18%,rgba(0,0,0,.74) 82%,transparent)}
+.slimed .word{position:relative;font:400 92px/.9 Bangers,Impact,sans-serif;letter-spacing:.04em;color:#9be22d;-webkit-text-stroke:5px #0e2400;paint-order:stroke fill;text-shadow:0 4px 0 #4f8a0b,0 8px 12px rgba(0,0,0,.6);text-align:center}
+.slimed .drips{position:absolute;left:8%;right:8%;top:80%;height:0}
+.slimed .drip{position:absolute;top:0;border-radius:0 0 999px 999px;background:linear-gradient(90deg,#6fb31c,#a8ee3a 45%,#6fb31c)}
+.slimed .cap{position:relative;margin-top:44px;font:800 13px Figtree;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.88);text-align:center}
+
 .toolbar{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
 .toolbar button{height:58px;display:grid;justify-items:center;align-content:center;gap:2px;font-weight:700;font-size:12px}
 .toolbar svg{width:24px;height:24px}
@@ -155,18 +204,18 @@ button{font:inherit;color:inherit;border:0;background:none}
 .sheet li::before{counter-increment:r;content:counter(r);position:absolute;left:0;top:9px;width:24px;height:24px;border-radius:6px;background:var(--ink);color:#fff;font-size:13px;font-weight:800;display:grid;place-items:center}
 .done{width:100%;height:54px;margin-top:12px;border-radius:12px;background:var(--ink);color:#fff;font-weight:800;font-size:16px}
 </style></head>
-<body><main class="app">
+<body><main class="app${view.slimed ? ' slimed-world' : ''}">
   <header class="appbar"><button class="ib" aria-label="Menu">${icon.menu}</button>
     <div class="brand">${snail('w', 'brand-snail')}Immortal Snail Chess</div>
     <button class="ib" aria-label="How to play">${icon.rules}</button></header>
-  <div class="strip">${strip()}</div>
+  <div class="strip">${strip(view.log, view.now)}</div>
   <div class="space"></div>
-  ${bar({ name: 'Snailfish', sub: '(Medium)', avatar: 'S', indicator: dots({ ...blackDots, snail: true, snailsMoving: moving, label: moving ? 'The snails are moving' : "Black has one move left before the snails move" }) })}
-  <div class="board">${board({ selected, legal })}</div>
-  ${bar({ name: 'You', sub: '(White)', avatar: 'You', you: true, turn: !moving, indicator: dots({ ...whiteDots, label: 'White: third move of three' }) })}
+  ${bar({ name: 'Snailfish', sub: '(Medium)', avatar: 'S', indicator: dots({ ...db, snail: 'b', snailsMoving: moving, label: moving ? 'The snails are moving' : `Black: ${db.done} of 3 moves played` }) })}
+  <div class="board">${board({ cells: view.cells, selected, legal })}</div>
+  ${bar({ name: 'You', sub: '(White)', avatar: 'You', you: true, turn: yourTurn, indicator: dots({ ...dw, snail: 'w', snailsMoving: moving, label: moving ? 'The snails are moving' : `White: ${dw.done} of 3 moves played` }) })}
   <div class="space-b"></div>
   <nav class="toolbar">
     <button>${icon.moves}Moves</button><button>${icon.rules}Rules</button><button>${icon.undo}Undo</button><button>${icon.plus}New</button>
   </nav>
-</main>${state === 'rules' ? sheet() : ''}</body></html>`;
+</main>${state === 'rules' ? sheet() : ''}${view.result ? resultCard(view.result) : ''}${view.slimed ? slimedOverlay(view.slimed) : ''}</body></html>`;
 }

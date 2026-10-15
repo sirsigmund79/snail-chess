@@ -4,11 +4,117 @@
   "project": "Immortal Snail Chess",
   "round": "05",
   "nativeViewport": "390x844",
-  "brief": "Round 04 refined. Snails drawn plain, move dots in each player's bar (snail after Black's), active dot or icon slightly bolder, coral only on the snails' move, board a little higher, new How to play sheet, and both snails starting on the a-file.",
+  "brief": "Round 04 refined. Snails drawn plain, move dots in each player's bar, each ending in that player's snail, active dot or icon slightly bolder, coral only on the snails' move, board a little higher, new How to play sheet, and both snails starting on the a-file.",
   "candidates": [
-    {"id": "idle", "name": "Your move", "concept": "Your third move of the cycle is active (bold ring); Black has one move left, then the snails.", "typography": "Figtree 800 / 700.", "palette": ["#ffffff", "#111111", "#ff5a4e", "#ffb3b3"], "traits": ["Plain snails on the board", "Coral only on the snails' next squares"], "source": "idle.html"},
-    {"id": "selected", "name": "Bishop selected", "concept": "Every legal square of the bishop on c4 in bright blue, from the real engine.", "typography": "Figtree 800 / 700.", "palette": ["#ffffff", "#111111", "#2e9bff", "#ff5a4e"], "traits": ["Legal squares: b5 a6 d5 e6 f7 d3 e2 f1 b3 a2"], "source": "selected.html"},
-    {"id": "snails", "name": "Snails' move", "concept": "After Black's third move, all dots are filled and the snail icon turns coral and bold: the snails are moving.", "typography": "Figtree 800 / 700.", "palette": ["#ffffff", "#111111", "#ff5a4e"], "traits": ["The only time the indicator turns coral"], "source": "snails.html"},
-    {"id": "rules", "name": "How to play", "concept": "Snail icon and Immortal Snail Chess header, then five rules.", "typography": "Figtree 800 heading, 500 body.", "palette": ["#ffffff", "#111111", "#ffb3b3"], "traits": ["New wording for rules 1–3"], "source": "rules.html"}
+    {
+      "id": "idle",
+      "name": "Your move",
+      "concept": "Your third move of the cycle is active (bold ring). Both bars end with their snail, inked until the snails move.",
+      "typography": "Figtree 800 / 700.",
+      "palette": [
+        "#ffffff",
+        "#111111",
+        "#ff5a4e",
+        "#ffb3b3"
+      ],
+      "traits": [
+        "Plain snails on the board",
+        "Coral only on the snails' next squares"
+      ],
+      "source": "idle.html"
+    },
+    {
+      "id": "selected",
+      "name": "Bishop selected",
+      "concept": "Every legal square of the bishop on c4 in bright blue, from the real engine.",
+      "typography": "Figtree 800 / 700.",
+      "palette": [
+        "#ffffff",
+        "#111111",
+        "#2e9bff",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "Legal squares: b5 a6 d5 e6 f7 d3 e2 f1 b3 a2"
+      ],
+      "source": "selected.html"
+    },
+    {
+      "id": "snails",
+      "name": "Snails' move",
+      "concept": "After Black's third move every dot is filled and both snail icons turn coral and bold: the snails are moving.",
+      "typography": "Figtree 800 / 700.",
+      "palette": [
+        "#ffffff",
+        "#111111",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "The only time the indicator turns coral"
+      ],
+      "source": "snails.html"
+    },
+    {
+      "id": "rules",
+      "name": "How to play",
+      "concept": "Snail icon and Immortal Snail Chess header, then five rules.",
+      "typography": "Figtree 800 heading, 500 body.",
+      "palette": [
+        "#ffffff",
+        "#111111",
+        "#ffb3b3"
+      ],
+      "traits": [
+        "New wording for rules 1\u20133"
+      ],
+      "source": "rules.html"
+    },
+    {
+      "id": "end-slimed",
+      "name": "End: SLIMED",
+      "concept": "The moment a snail takes your king: the screen drains to grey and SLIMED lands.",
+      "typography": "Bangers for SLIMED, Figtree 800 caption.",
+      "palette": [
+        "#111111",
+        "#9be22d",
+        "#0e2400"
+      ],
+      "traits": [
+        "Played through the real engine: Black's snail crushes your king on e1 at ply 24"
+      ],
+      "source": "end-slimed.html"
+    },
+    {
+      "id": "end-slimed-result",
+      "name": "End: slimed result",
+      "concept": "After the finale: a result card placed clear of the crushed square, with Rematch first.",
+      "typography": "Figtree 800 title, 700 lines.",
+      "palette": [
+        "#ffffff",
+        "#111111",
+        "#ff5a4e"
+      ],
+      "traits": [
+        "Coral snail emblem: lost to a snail",
+        "Crushed square e1 stays visible"
+      ],
+      "source": "end-slimed-result.html"
+    },
+    {
+      "id": "end-checkmate",
+      "name": "End: checkmate",
+      "concept": "A normal checkmate ends calmly: the mated king is boxed with #, and the card has a blue king emblem.",
+      "typography": "Figtree 800 title, 700 lines.",
+      "palette": [
+        "#ffffff",
+        "#111111",
+        "#2e9bff"
+      ],
+      "traits": [
+        "Scholar's mate with snails on the board, played through the engine",
+        "No SLIMED: that's only for snails"
+      ],
+      "source": "end-checkmate.html"
+    }
   ]
 }
