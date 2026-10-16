@@ -17,12 +17,17 @@ export interface LevelConfig {
   margin: number;
   /** Softmax temperature (centipawns): higher = more willing to play the 2nd/3rd best move. */
   temperature: number;
+  /**
+   * Cap on the static snail terms' say in calm positions (see CALM). Small on Easy: with its wide
+   * sampling margin, a bigger nudge lets clearly worse moves through.
+   */
+  calmCap: number;
 }
 
 export const LEVELS: Record<Level, LevelConfig> = {
-  easy: { sfDepth: 3, multipv: 6, lookahead: 1, margin: 150, temperature: 80 },
-  medium: { sfDepth: 8, multipv: 5, lookahead: 2, margin: 40, temperature: 20 },
-  hard: { sfDepth: 14, multipv: 5, lookahead: 3, margin: 25, temperature: 12 },
+  easy: { sfDepth: 3, multipv: 6, lookahead: 1, margin: 150, temperature: 80, calmCap: 50 },
+  medium: { sfDepth: 8, multipv: 5, lookahead: 2, margin: 40, temperature: 20, calmCap: 150 },
+  hard: { sfDepth: 14, multipv: 5, lookahead: 3, margin: 25, temperature: 12, calmCap: 150 },
 };
 
 /** Look at more Stockfish lines early on so openings vary between games. */
@@ -71,11 +76,6 @@ const DOOMED = -MATE / 4;
 /** Snail-search moves added to Stockfish's shortlist while our king is short of room. */
 const EXTRA_WHEN_IN_DANGER = 3;
 const EXTRA_KING_MOVES = 2;
-/**
- * In calm positions only the static snail terms (king room, distance to the snail) adjust
- * Stockfish's score, capped so they nudge development and luft without overriding chess.
- */
-const CALM_CAP = 150;
 /** Sampling limits while the king is in snail danger (Medium's, for every level). */
 const DANGER_MARGIN = 40;
 const DANGER_TEMPERATURE = 20;
@@ -122,7 +122,9 @@ export async function chooseMove(
   if (!legal.length) throw new Error('No legal moves');
   const side = turn(state);
   // With the snails far off, Stockfish's judgement decides: the shallow snail search would only
-  // second-guess it with tactics it sees less well (see CALM_CAP).
+  // second-guess it with tactics it sees less well. Only the static snail terms (escape room,
+  // distance to the snail) adjust its score, capped per level so they nudge development and
+  // luft without overriding chess.
   const calm = !snailsMatter(state, cfg.lookahead + 2);
   // When the king is in snail danger, every level picks carefully (Easy stays careless at chess,
   // but shouldn't look oblivious to the snail).
@@ -178,7 +180,7 @@ export async function chooseMove(
           const snailScore = s?.score ?? 0;
           const child = applyMove(state, c.move, { fast: true, legal });
           const adjust = calm
-            ? Math.max(-CALM_CAP, Math.min(CALM_CAP, snailEval(child, side)))
+            ? Math.max(-cfg.calmCap, Math.min(cfg.calmCap, snailEval(child, side)))
             : snailScore - materialEval(child.fen, side);
           const sfCp = Math.max(-SF_CLAMP, Math.min(SF_CLAMP, c.cp));
           const final = Math.abs(snailScore) > MATE / 4 ? snailScore : sfCp + adjust;
