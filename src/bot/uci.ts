@@ -13,6 +13,8 @@ export interface AnalyzeOptions {
   multipv: number;
   /** Restrict the root to these UCI moves (our snail-legal list). */
   searchmoves: string[];
+  /** Also stop after this many milliseconds, whichever limit comes first (bounds slow phones). */
+  movetime?: number;
 }
 
 /** Anything that can propose scored candidate moves for a FEN (Stockfish in a worker, in Node…). */
@@ -29,12 +31,18 @@ export const fromUci = (s: string): MoveInput => ({
   ...(s[4] ? { promotion: s[4] as MoveInput['promotion'] } : {}),
 });
 
-export function uciCommands(fen: string, opts: AnalyzeOptions): string[] {
+/**
+ * Commands for one search. `ucinewgame` clears Stockfish's hash table, so it is only sent on a
+ * session's first search: later searches (the next move, or a second look at the same position)
+ * reuse what earlier ones learned.
+ */
+export function uciCommands(fen: string, opts: AnalyzeOptions, fresh = false): string[] {
+  const limits = `depth ${opts.depth}${opts.movetime ? ` movetime ${opts.movetime}` : ''}`;
   return [
-    'ucinewgame',
+    ...(fresh ? ['ucinewgame'] : []),
     `setoption name MultiPV value ${opts.multipv}`,
     `position fen ${fen}`,
-    `go depth ${opts.depth} searchmoves ${opts.searchmoves.join(' ')}`,
+    `go ${limits} searchmoves ${opts.searchmoves.join(' ')}`,
   ];
 }
 
@@ -76,6 +84,7 @@ export class UciSession implements CandidateEngine {
   private queue: Promise<unknown> = Promise.resolve();
   private listener: ((line: string) => void) | null = null;
   private ready: Promise<void>;
+  private searched = false;
 
   constructor(
     private send: (cmd: string) => void,
@@ -113,7 +122,8 @@ export class UciSession implements CandidateEngine {
             resolve(done);
           }
         };
-        for (const cmd of uciCommands(fen, opts)) this.send(cmd);
+        for (const cmd of uciCommands(fen, opts, !this.searched)) this.send(cmd);
+        this.searched = true;
       });
     };
     const result = this.queue.then(run, run);

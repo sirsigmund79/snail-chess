@@ -25,6 +25,14 @@ describe('MultiPvCollector', () => {
       'go depth 4 searchmoves e2e4 d2d4',
     );
   });
+
+  it('adds a time cap, and only clears the hash on the first search', () => {
+    const opts = { depth: 14, multipv: 5, searchmoves: ['e2e4'], movetime: 2500 };
+    const first = uciCommands('8/8/8/8/8/8/8/8 w - - 0 1', opts, true);
+    expect(first[0]).toBe('ucinewgame');
+    expect(first.at(-1)).toBe('go depth 14 movetime 2500 searchmoves e2e4');
+    expect(uciCommands('8/8/8/8/8/8/8/8 w - - 0 1', opts)).not.toContain('ucinewgame');
+  });
 });
 
 describe('room codes', () => {

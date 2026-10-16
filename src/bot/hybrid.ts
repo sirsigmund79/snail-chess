@@ -22,12 +22,14 @@ export interface LevelConfig {
    * sampling margin, a bigger nudge lets clearly worse moves through.
    */
   calmCap: number;
+  /** Stockfish stops at sfDepth or after this many ms, whichever comes first. */
+  maxMs: number;
 }
 
 export const LEVELS: Record<Level, LevelConfig> = {
-  easy: { sfDepth: 3, multipv: 6, lookahead: 1, margin: 150, temperature: 80, calmCap: 50 },
-  medium: { sfDepth: 8, multipv: 5, lookahead: 2, margin: 40, temperature: 20, calmCap: 150 },
-  hard: { sfDepth: 14, multipv: 5, lookahead: 3, margin: 25, temperature: 12, calmCap: 150 },
+  easy: { sfDepth: 3, multipv: 6, lookahead: 1, margin: 150, temperature: 80, calmCap: 50, maxMs: 800 },
+  medium: { sfDepth: 8, multipv: 5, lookahead: 2, margin: 40, temperature: 20, calmCap: 150, maxMs: 2000 },
+  hard: { sfDepth: 14, multipv: 5, lookahead: 3, margin: 25, temperature: 12, calmCap: 150, maxMs: 2500 },
 };
 
 /** Look at more Stockfish lines early on so openings vary between games. */
@@ -76,6 +78,8 @@ const DOOMED = -MATE / 4;
 /** Snail-search moves added to Stockfish's shortlist while our king is short of room. */
 const EXTRA_WHEN_IN_DANGER = 3;
 const EXTRA_KING_MOVES = 2;
+const EXTRA_DEPTH = 10;
+const EXTRA_MS = 1000;
 /** Sampling limits while the king is in snail danger (Medium's, for every level). */
 const DANGER_MARGIN = 40;
 const DANGER_TEMPERATURE = 20;
@@ -148,6 +152,7 @@ export async function chooseMove(
     try {
       const sf = await deps.engine.analyze(sfFen, {
         depth: cfg.sfDepth,
+        movetime: cfg.maxMs,
         multipv: state.plyCount < OPENING_PLIES ? Math.max(cfg.multipv, OPENING_MULTIPV) : cfg.multipv,
         searchmoves: legal.map((m) => toUci({ from: m.from, to: m.to, promotion: m.promotion as MoveInput['promotion'] })),
       });
@@ -165,8 +170,11 @@ export async function chooseMove(
           ...missing.slice(EXTRA_WHEN_IN_DANGER).filter(isKingMove).slice(0, EXTRA_KING_MOVES),
         ];
         if (extra.length) {
+          // Only scoring a few known moves (and the hash still holds the first search), so a
+          // shallower, shorter look is enough.
           const more = await deps.engine.analyze(sfFen, {
-            depth: cfg.sfDepth,
+            depth: Math.min(cfg.sfDepth, EXTRA_DEPTH),
+            movetime: Math.min(cfg.maxMs, EXTRA_MS),
             multipv: extra.length,
             searchmoves: extra.map((q) => toUci(q.move)),
           });
