@@ -94,6 +94,20 @@ starting on those squares are dropped.
 4. If every candidate is doomed, or Stockfish isn't available, the best move from the full snail
    search is played.
 
+**Calm vs snail positions.** While no snail is within two squares of a king and no snail step is
+about to crush a piece, the position is "calm": Stockfish's score decides, nudged only by the
+static snail terms (capped per level). Otherwise the snail lookahead rescores in full, and if the
+bot's king is in danger it adds the snail search's favourites and king moves to Stockfish's
+shortlist (scored by a second, restricted Stockfish search) and picks with Medium's tight margin
+even on Easy.
+
+**Escape check.** The snail is slow but its route is fixed, so the evaluation plays the chase out
+exactly with everything except the king frozen: the king's real number of moves between snail
+steps, each a king step, castling or a move elsewhere. A king that can't dodge the snail past its
+next 1–4 steps is penalised (1200/700/400/200), so boxed-in kings (uncastled with the f8 bishop
+home, or castled behind three pawns) start making room long before the search could see the
+crush. A snail step that crushes both kings at once scores as a draw.
+
 **Variety.** Stockfish is deterministic, so the bot doesn't simply play the top move. It samples
 among moves within a per-level margin of the best, weighted by `exp((score − best) / T)`, and
 looks at 8 Stockfish lines during the first 8 plies. Forced wins and escapes are never sampled.
