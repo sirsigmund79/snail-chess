@@ -192,28 +192,32 @@ export function snailEval(
   const dOwn = Math.max(1, chebyshev(ownKing, enemySnail));
   const dEnemy = Math.max(1, chebyshev(enemyKing, ownSnail));
   const plies = pliesUntilTick(state.plyCount);
+  const toMove = turn(state);
 
   let score = -w.alpha / dOwn ** w.exponent + w.beta / dEnemy ** w.exponent;
   score -= boxedTerm(board, ownKing, color, enemySnail, ownSnail, w);
   score += boxedTerm(board, enemyKing, enemy, ownSnail, enemySnail, w) / 2;
-  const toMove = turn(state);
   score -= escapeTerm(board, ownKing, color, castling, enemySnail, ownSnail, countMovesBeforeTick(toMove, color, plies)) * w.escapeScale;
   score += (escapeTerm(board, enemyKing, enemy, castling, ownSnail, enemySnail, countMovesBeforeTick(toMove, enemy, plies)) * w.escapeScale) / 2;
 
   // Our king standing on the enemy snail's next two steps is a trap waiting to close.
   const step1 = nextSnailStep(enemySnail, ownKing, ownSnail);
   const step2 = nextSnailStep(step1, ownKing, ownSnail);
+  const ourMoves = countMovesBeforeTick(toMove, color, plies);
+  const theirMoves = countMovesBeforeTick(toMove, enemy, plies);
+  const eStep1 = nextSnailStep(ownSnail, enemyKing, enemySnail);
+  // Lethal if the tick fires before that king can step away. Both at once is a draw, not a win.
+  const weDie = step1 === ownKing && ourMoves === 0;
+  const theyDie = eStep1 === enemyKing && theirMoves === 0;
   if (step1 === ownKing) {
-    // Snail is adjacent. Lethal if the tick fires before we can step away.
-    const ourMovesBeforeTick = countMovesBeforeTick(turn(state), color, plies);
-    score -= ourMovesBeforeTick === 0 ? MATE / 2 : w.imminentPenalty / ourMovesBeforeTick;
+    if (!weDie) score -= w.imminentPenalty / ourMoves;
+    else if (!theyDie) score -= MATE / 2;
   } else if (step2 === ownKing) {
     score -= w.pathPenalty;
   }
-  const eStep1 = nextSnailStep(ownSnail, enemyKing, enemySnail);
   if (eStep1 === enemyKing) {
-    const theirMoves = countMovesBeforeTick(turn(state), enemy, plies);
-    score += theirMoves === 0 ? MATE / 2 : w.imminentPenalty / (2 * theirMoves);
+    if (!theyDie) score += w.imminentPenalty / (2 * theirMoves);
+    else if (!weDie) score += MATE / 2;
   }
   return score;
 }
