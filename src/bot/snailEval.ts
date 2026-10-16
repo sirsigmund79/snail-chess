@@ -30,7 +30,7 @@ export interface SnailWeights {
 }
 
 export const DEFAULT_WEIGHTS: SnailWeights = {
-  alpha: 120,
+  alpha: 300,
   beta: 80,
   exponent: 1.5,
   pathPenalty: 60,
@@ -143,14 +143,19 @@ function escapeTerm(board: Board, king: Square, color: Color, castling: string, 
   return survived >= ESCAPE_PENALTY.length ? 0 : ESCAPE_PENALTY[survived];
 }
 
-/** How much the escape term is hurting the side to move right now (0 = the snail is no worry yet). */
-export function kingDanger(state: ImmortalChessState): number {
+/**
+ * Is the side to move's king in snail trouble: the snail is within two squares, or the escape
+ * term says the king is running out of ways to dodge it? Used to widen the bot's shortlist.
+ */
+export function kingInDanger(state: ImmortalChessState): boolean {
   const color = turn(state);
   const { board, castling } = parseFen(state.fen);
   const king = findKing(board, color);
-  if (!king) return 0;
+  if (!king) return false;
+  const snail = state.snails[opposite(color)].square;
+  if (chebyshev(king, snail) <= 2) return true;
   const moves = countMovesBeforeTick(color, color, pliesUntilTick(state.plyCount));
-  return escapeTerm(board, king, color, castling, state.snails[opposite(color)].square, state.snails[color].square, moves);
+  return escapeTerm(board, king, color, castling, snail, state.snails[color].square, moves) > 0;
 }
 
 const VALUES: Record<string, number> = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };

@@ -1,7 +1,7 @@
 import { applyMove, getLegalMoves, turn } from '../engine/game';
 import { engineFen } from '../engine/boardValidator';
 import type { ImmortalChessState, MoveInput } from '../engine/types';
-import { kingDanger, MATE, materialEval, type ScoredMove } from './snailEval';
+import { kingInDanger, MATE, materialEval, type ScoredMove } from './snailEval';
 import { snailGuard } from './snailGuard';
 import { toUci, type CandidateEngine } from './uci';
 
@@ -70,6 +70,7 @@ export interface Choice {
 const DOOMED = -MATE / 4;
 /** Snail-search moves added to Stockfish's shortlist while our king is short of room. */
 const EXTRA_WHEN_IN_DANGER = 3;
+const EXTRA_KING_MOVES = 2;
 /**
  * Stockfish sees snails as virtual blocker pieces, which it may "use" in its lines (e.g. a fake
  * mate with the blocker knight). Its scores are therefore clamped and never decide the game on
@@ -139,8 +140,14 @@ export async function chooseMove(
       // Stockfish doesn't see the snail coming, so when our king is short of room its shortlist
       // can miss the moves that make some (developing the blocking bishop, castling, a king walk).
       // Add the snail search's favourites and let Stockfish score them on the same footing.
-      if (candidates.length && kingDanger(state) > 0) {
-        const extra = quick.filter((q) => !candidates.some((c) => same(c.move, q.move))).slice(0, EXTRA_WHEN_IN_DANGER);
+      if (candidates.length && kingInDanger(state)) {
+        const missing = quick.filter((q) => !candidates.some((c) => same(c.move, q.move)));
+        const isKingMove = (q: ScoredMove) => legal.some((m) => m.piece === 'k' && m.from === q.move.from && m.to === q.move.to);
+        // The snail search's favourites, plus its best king moves (often the real escape).
+        const extra = [
+          ...missing.slice(0, EXTRA_WHEN_IN_DANGER),
+          ...missing.slice(EXTRA_WHEN_IN_DANGER).filter(isKingMove).slice(0, EXTRA_KING_MOVES),
+        ];
         if (extra.length) {
           const more = await deps.engine.analyze(sfFen, {
             depth: cfg.sfDepth,
