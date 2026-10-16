@@ -38,16 +38,15 @@ describe('snailGuard', () => {
     expect(snailGuard(g)).toEqual({ kind: 'win', move: { from: 'a1', to: 'a8' } });
   });
 
-  it('lets the king stay when our snail crushes their king first', () => {
-    // Both kings sit next to the enemy snail. White's snail moves first, and Black's king is
-    // boxed in by its own pieces, so every Black reply loses before Black's snail can strike.
+  it('steps aside rather than trade kings when both snails strike at once', () => {
+    // Both kings sit next to the enemy snail and Black's king is boxed in. Staying put means both
+    // kings fall at the tick (a draw); stepping the White king away wins outright.
     const g = createGame({ fen: '3rkr2/3p1p2/8/8/8/8/8/R3K3 w - - 0 1', snails: { w: 'e7', b: 'd2' }, plyCount: 4 });
-    const after = applyMove(g, { from: 'a1', to: 'a2' });
-    expect(after.gameStatus).toBe('in_progress');
+    const stay = applyMove(applyMove(g, { from: 'a1', to: 'a2' }), { from: 'd8', to: 'c8' });
+    expect(stay).toMatchObject({ gameStatus: 'draw', drawReason: 'both_kings_crushed' });
     const guard = snailGuard(g);
-    // a1a2 (not a king move) must be allowed: White wins at the tick whatever Black does.
-    const allowed = guard?.kind === 'restrict' ? guard.allowed : null;
-    expect(allowed === null || allowed.some((m) => m.from === 'a1' && m.to === 'a2')).toBe(true);
+    if (guard?.kind !== 'restrict') throw new Error(`expected a restriction, got ${JSON.stringify(guard)}`);
+    expect(guard.allowed.every((m) => m.from === 'e1')).toBe(true);
   });
 
   it.each(levels)('the %s bot always steps out of reach', async (level) => {
@@ -57,5 +56,16 @@ describe('snailGuard', () => {
       expect(move.from).toBe('e1');
       expect(chebyshev(move.to, 'd2')).toBeGreaterThanOrEqual(2);
     }
+  });
+});
+
+describe('snail guard with the both-kings draw', () => {
+  it('steps the king aside instead of settling for a double crush', () => {
+    // Black to move at ply 23: White's snail on d7 takes e8, Black's on d2 takes e1. Kf8 escapes
+    // and Black's snail then wins alone.
+    const g = createGame({ fen: '4k3/7p/8/8/8/8/P7/4K3 b - - 0 1', snails: { w: 'd7', b: 'd2' }, plyCount: 23 });
+    const r = snailGuard(g);
+    if (r?.kind !== 'win') throw new Error(`expected a winning escape, got ${JSON.stringify(r)}`);
+    expect(applyMove(g, r.move)).toMatchObject({ gameStatus: 'snail_win_black', winner: 'b' });
   });
 });

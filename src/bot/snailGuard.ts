@@ -34,7 +34,8 @@ export function snailGuard(state: ImmortalChessState): GuardResult {
   const win = children.find(({ child }) => child.winner === us || isCheckmated(child, them));
   if (win) return { kind: 'win', move: win.move };
 
-  // 2. Otherwise only keep moves after which the king survives every reply.
+  // 2. Otherwise only keep moves after which the king survives every reply. Both kings falling at
+  //    once is a draw, but it still counts as losing ours: stepping aside may win outright.
   const safe = children.filter(({ child }) => survivesEveryReply(child, us));
   if (safe.length === 0 || safe.length === children.length) return null; // lost anyway / no danger
   return { kind: 'restrict', allowed: safe.map((c) => c.move) };
@@ -49,8 +50,11 @@ function isCheckmated(state: ImmortalChessState, color: Color): boolean {
   );
 }
 
+/** Our king is still on the board: not lost, and not crushed in a both-kings draw either. */
+const kingAlive = (s: ImmortalChessState, us: Color) => s.winner !== opposite(us) && s.drawReason !== 'both_kings_crushed';
+
 function survivesEveryReply(child: ImmortalChessState, us: Color): boolean {
-  if (child.gameStatus !== 'in_progress') return child.winner !== opposite(us);
+  if (child.gameStatus !== 'in_progress') return kingAlive(child, us);
   const replies = getLegalMoves(child);
-  return replies.every((r) => applyMove(child, toInput(r), { fast: true, legal: replies }).winner !== opposite(us));
+  return replies.every((r) => kingAlive(applyMove(child, toInput(r), { fast: true, legal: replies }), us));
 }
