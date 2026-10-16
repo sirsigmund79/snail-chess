@@ -2,7 +2,8 @@
  * Browser smoke test against `npm run preview` (default http://localhost:4173), at phone size:
  *  1. theme: Paper grey board, console-only ?hyper hint, blue legal squares on selection;
  *  2. hot-seat: snails step after the 6th ply, one at a time, with banners and coral move dots;
- *  3. a snail crush; a snail taking a king (SLIMED, then the result card); a normal checkmate;
+ *  3. a snail crush; both kings at once (a draw); a snail taking a king (SLIMED, then the result
+ *     card); a normal checkmate;
  *  4. rules and moves sheets;
  *  5. vs bot: replies arrive (Stockfish + search workers) and vary between games;
  *  6. ?hyper unlocks Bubblegum Bass.
@@ -99,11 +100,33 @@ await shot('crush');
 await skipPlayback();
 console.log('crush ok');
 
-// 3b. SLIMED: shuffle knights for 24 plies so White's snail walks a4→b5→c6→d7→e8 into Black's king.
+// 3b. Both kings at once: shuffle knights for 24 plies with both kings at home. Each snail walks
+// four steps into the other king on the same snail move, which is a draw (no SLIMED finale).
 await newGame('Friend (same phone)');
 const shuffle = [['g1', 'f3'], ['g8', 'h6'], ['f3', 'g1'], ['h6', 'g8']]; // clear of both snails' paths
 for (let i = 0; i < 24; i++) {
   const [f, t] = shuffle[i % 4];
+  await move(f, t);
+  if ((i + 1) % 6 === 0 && i < 23) await skipPlayback();
+}
+await page.waitForFunction(() => document.querySelector('[data-testid="snail-banner"]')?.textContent?.includes('Both kings slimed'), null, { timeout: 10000 });
+await page.keyboard.press('Space');
+await page.waitForSelector('[data-testid="result"]', { timeout: 5000 });
+if (await page.$('[data-testid="slimed"]')) throw new Error('double crush showed the SLIMED finale');
+const drawTitle = await page.textContent('[data-testid="result"] h3');
+const drawLine = await page.textContent('[data-testid="result"] p');
+if (drawTitle !== 'Draw.' || drawLine !== 'Both snails got both kings at once.') throw new Error(`double crush result: ${drawTitle} ${drawLine}`);
+console.log('double crush ok:', drawTitle, drawLine);
+await page.click('[data-testid="result"] >> text=New game');
+await page.click('.sheet >> text=Friend (same phone)');
+await page.click('text=Start new game');
+await page.waitForSelector('[data-testid="result"]', { state: 'detached' });
+
+// 3c. SLIMED: White's king walks off (e4, Ke2, Kf3, Kg3, then shuffles) while Black shuffles a knight,
+// so only White's snail arrives: a4→b5→c6→d7→e8 into Black's king at ply 24.
+const walk = [['e2', 'e4'], ['e1', 'e2'], ['e2', 'f3'], ['f3', 'g3'], ['g3', 'h3'], ['h3', 'g3'], ['g3', 'h3'], ['h3', 'g3'], ['g3', 'h3'], ['h3', 'g3'], ['g3', 'h3'], ['h3', 'g3']];
+for (let i = 0; i < 24; i++) {
+  const [f, t] = i % 2 === 0 ? walk[i / 2] : shuffle[i % 4];
   await move(f, t);
   if ((i + 1) % 6 === 0 && i < 23) await skipPlayback();
 }
@@ -123,7 +146,7 @@ await page.waitForSelector('.sheet >> text=Start new game');
 await page.click('text=Start new game');
 await page.waitForSelector('[data-testid="result"]', { state: 'detached' });
 
-// 3c. Checkmate: Scholar's mate with the snails on the board (sheets checked just before the mate).
+// 3d. Checkmate: Scholar's mate with the snails on the board (sheets checked just before the mate).
 for (const [f, t] of [['e2', 'e4'], ['e7', 'e5'], ['f1', 'c4'], ['b8', 'c6'], ['d1', 'h5'], ['g8', 'f6']]) await move(f, t);
 await skipPlayback();
 
