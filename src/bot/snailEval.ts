@@ -73,8 +73,8 @@ function boxedTerm(board: Board, king: Square, color: Color, enemySnail: Square,
 }
 
 /** Moves of warning at which the room term starts (and below which it is at full strength). */
-const ROOM_HORIZON = 12;
-const ROOM_URGENT = 3;
+const ROOM_HORIZON = 15;
+const ROOM_URGENT = 6;
 /** A king that can reach this many safe squares within three steps has room to run. */
 const ROOM_ENOUGH = 6;
 
@@ -124,6 +124,17 @@ function roomTerm(board: Board, king: Square, color: Color, enemySnail: Square, 
   const room = kingRoom(board, king, color, enemySnail, ownSnail);
   const deficit = Math.min(1, Math.max(0, (ROOM_ENOUGH - room) / (ROOM_ENOUGH - 1)));
   return w.roomPenalty * urgency * deficit;
+}
+
+/** How much the room term is hurting the side to move right now (0 = the snail is no worry yet). */
+export function kingDanger(state: ImmortalChessState, w: SnailWeights = DEFAULT_WEIGHTS): number {
+  const color = turn(state);
+  const { board } = parseFen(state.fen);
+  const king = findKing(board, color);
+  if (!king) return 0;
+  const enemy = opposite(color);
+  const moves = countMovesBeforeTick(color, color, pliesUntilTick(state.plyCount));
+  return roomTerm(board, king, color, state.snails[enemy].square, state.snails[color].square, moves, w);
 }
 
 const VALUES: Record<string, number> = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };

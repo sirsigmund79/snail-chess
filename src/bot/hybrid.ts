@@ -1,7 +1,7 @@
 import { applyMove, getLegalMoves, turn } from '../engine/game';
 import { engineFen } from '../engine/boardValidator';
 import type { ImmortalChessState, MoveInput } from '../engine/types';
-import { MATE, materialEval, type ScoredMove } from './snailEval';
+import { kingDanger, MATE, materialEval, type ScoredMove } from './snailEval';
 import { snailGuard } from './snailGuard';
 import { toUci, type CandidateEngine } from './uci';
 
@@ -68,6 +68,8 @@ export interface Choice {
 }
 
 const DOOMED = -MATE / 4;
+/** Snail-search moves added to Stockfish's shortlist while our king is short of room. */
+const EXTRA_WHEN_IN_DANGER = 3;
 /**
  * Stockfish sees snails as virtual blocker pieces, which it may "use" in its lines (e.g. a fake
  * mate with the blocker knight). Its scores are therefore clamped and never decide the game on
@@ -134,6 +136,20 @@ export async function chooseMove(
       });
       if (!sf.length) console.warn('[bot] Stockfish returned no candidates for', sfFen);
       const candidates = sf.filter((c) => legal.some((m) => same(c.move, { from: m.from, to: m.to, promotion: m.promotion as MoveInput['promotion'] })));
+      // Stockfish doesn't see the snail coming, so when our king is short of room its shortlist
+      // can miss the moves that make some (developing the blocking bishop, castling, a king walk).
+      // Add the snail search's favourites and let Stockfish score them on the same footing.
+      if (candidates.length && kingDanger(state) > 0) {
+        const extra = quick.filter((q) => !candidates.some((c) => same(c.move, q.move))).slice(0, EXTRA_WHEN_IN_DANGER);
+        if (extra.length) {
+          const more = await deps.engine.analyze(sfFen, {
+            depth: cfg.sfDepth,
+            multipv: extra.length,
+            searchmoves: extra.map((q) => toUci(q.move)),
+          });
+          candidates.push(...more.filter((c) => extra.some((q) => same(q.move, c.move))));
+        }
+      }
       if (candidates.length) {
         const snail = await deps.lookahead(state, cfg.lookahead, candidates.map((c) => c.move));
         const rows = candidates.map((c) => {
