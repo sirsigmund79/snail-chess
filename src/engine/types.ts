@@ -27,7 +27,9 @@ export type DrawReason =
   | 'stalemate'
   | 'threefold_repetition'
   | 'fifty_move_rule'
-  | 'insufficient_material';
+  | 'insufficient_material'
+  /** Both snails crushed both kings in the same snail move. */
+  | 'both_kings_crushed';
 
 export interface SnailMove {
   color: Color;

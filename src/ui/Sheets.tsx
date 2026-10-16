@@ -25,7 +25,7 @@ export function Sheet({ label, onClose, children }: { label: string; onClose: ()
 export const RULES: [string, string][] = [
   ['Snails hunt the kings.', 'Each snail takes the most direct path to the opposite king.'],
   ['Every three moves, they step.', 'Each snail moves one square closer.'],
-  ['Snails are unstoppable.', 'They capture anything on the square they land on. If a snail captures a king, game over.'],
+  ['Snails are unstoppable.', 'They capture anything on the square they land on. If a snail captures a king, game over. If both kings fall at once, it’s a draw.'],
   ['Snails are walls.', 'Nothing can land on or pass through a snail. Knights can still jump over.'],
   ['Everything else is chess.', 'Checkmate still wins.'],
 ];

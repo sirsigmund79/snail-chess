@@ -13,6 +13,14 @@ describe('snail playback frames', () => {
     expect(frames.some((f) => f.crush?.square === 'e7')).toBe(true);
   });
 
+  it('shows a double crush as a draw, without the SLIMED finale', () => {
+    const g = createGame({ fen: '4k3/7p/8/8/8/8/P7/4K3 b - - 0 1', snails: { w: 'd7', b: 'd2' }, plyCount: 5 });
+    const after = applyMove(g, { from: 'h7', to: 'h6' });
+    const frames = framesFor(after.history[0], after);
+    expect(frames.some((f) => f.slimed)).toBe(false);
+    expect(frames[frames.length - 1].banner?.text).toBe('Both kings slimed! Draw.');
+  });
+
   it('keeps the normal banner for ordinary crushes', () => {
     const g = createGame({
       fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',

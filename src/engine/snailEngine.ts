@@ -55,17 +55,24 @@ export function nextSnailStep(from: Square, target: Square, blocked: Square | nu
   return best?.sq ?? from;
 }
 
+/** Would Black's snail land on the White king with its step this tick? */
+function blackSnailTakesWhiteKing(board: Board, snails: { w: SnailState; b: SnailState }): boolean {
+  const king = findKing(board, 'w');
+  return !!king && nextSnailStep(snails.b.square, king, snails.w.square) === king;
+}
+
 export interface TickResult {
   board: Board;
   snails: { w: SnailState; b: SnailState };
   moves: SnailMove[];
-  /** Colour of the king that was crushed, if any. */
-  crushedKing: Color | null;
+  /** Colour of the king that was crushed, if any; 'both' if both snails got a king (a draw). */
+  crushedKing: Color | 'both' | null;
 }
 
 /**
- * Advance both snails one step. White's snail resolves first; if it crushes the Black king the
- * tick stops there. Any piece on a landing square is removed.
+ * Advance both snails one step. White's snail resolves first; any piece on a landing square is
+ * removed. If White's snail crushes the Black king, Black's snail only steps if that step crushes
+ * the White king too: both kings fall at once, which is a draw. Otherwise White has won.
  */
 export function applySnailTick(board: Board, snails: { w: SnailState; b: SnailState }): TickResult {
   const next: Board = board.slice();
@@ -85,6 +92,14 @@ export function applySnailTick(board: Board, snails: { w: SnailState; b: SnailSt
     moves.push({ color, from: snail.square, to, ...(crushed ? { crushed } : {}) });
     snail.square = to;
     if (crushed?.type === 'k') {
+      if (color === 'w' && blackSnailTakesWhiteKing(next, out)) {
+        const from = out.b.square;
+        const king = findKing(next, 'w')!;
+        next[sqIndex(king)] = null;
+        moves.push({ color: 'b', from, to: king, crushed: { type: 'k', color: 'w' } });
+        out.b.square = king;
+        return { board: next, snails: out, moves, crushedKing: 'both' };
+      }
       return { board: next, snails: out, moves, crushedKing: crushed.color };
     }
   }

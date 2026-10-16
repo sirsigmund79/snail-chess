@@ -153,7 +153,7 @@ export function applyMove(
   const plyCount = state.plyCount + 1;
   let snails = state.snails;
   let tick: TickEvent | undefined;
-  let crushedKing: Color | null = null;
+  let crushedKing: Color | 'both' | null = null;
   let fenBeforeTick: string | undefined;
   if (isTickPly(plyCount)) {
     fenBeforeTick = fen;
@@ -193,6 +193,15 @@ export function applyMove(
     next.positionCounts[key] = (next.positionCounts[key] ?? 0) + 1;
   }
 
+  if (crushedKing === 'both') {
+    return {
+      ...next,
+      gameStatus: 'draw',
+      winner: null,
+      drawReason: 'both_kings_crushed',
+      endReason: 'Both snails got both kings at once',
+    };
+  }
   if (crushedKing) {
     const winner = opposite(crushedKing);
     return {

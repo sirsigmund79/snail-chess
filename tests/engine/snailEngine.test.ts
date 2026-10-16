@@ -76,6 +76,17 @@ describe('applySnailTick', () => {
     expect(r.snails.b.square).toBe('h5');
   });
 
+  it('crushes both kings at once when both snails reach them in the same tick', () => {
+    const { board } = parseFen('4k3/8/8/8/8/8/8/4K3 w - - 0 1');
+    const r = applySnailTick(board, snails('d7', 'd2'));
+    expect(r.crushedKing).toBe('both');
+    expect(r.moves.map((m) => [m.color, m.to, m.crushed?.type])).toEqual([
+      ['w', 'e8', 'k'],
+      ['b', 'e1', 'k'],
+    ]);
+    expect(r.board.some((p) => p?.type === 'k')).toBe(false);
+  });
+
   it('resolves white first; black sidesteps a clash', () => {
     // White d4 -> e5 (toward e8). Black f6 also wants e5 (toward e1), so it sidesteps to f5.
     const { board } = parseFen('4k3/8/8/8/8/8/8/4K3 w - - 0 1');

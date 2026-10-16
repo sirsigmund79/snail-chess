@@ -50,7 +50,7 @@ by hand.
 | Timing | A tick fires after plies 6, 12, 18… (after Black's 3rd, 6th… move). White's snail resolves first. |
 | Step | `(sign(dFile), sign(dRank))` toward the target king, i.e. one Chebyshev step (diagonal when both axes differ). |
 | Clash | If the other snail is on that square, the snail takes another neighbouring square that still strictly shortens its Chebyshev distance (nearest to the king first), or waits. |
-| Crush | Any piece on the landing square is removed, of either colour. A crushed king loses immediately (`snail_win_white` / `snail_win_black` name the winner). If White's snail crushes a king, Black's snail does not move that tick. |
+| Crush | Any piece on the landing square is removed, of either colour. A crushed king loses immediately (`snail_win_white` / `snail_win_black` name the winner). If both snails land on both kings in the same snail move, it's a draw (`both_kings_crushed`). If White's snail crushes the Black king and Black's snail can't reach the White king, Black's snail doesn't move. |
 | Walls | Nothing may land on a snail. Sliders, pawn double pushes and castling can't pass through one; knights can jump over. Snails also block lines of attack, so they block checks and pins. |
 | Snail exposes a king | If a snail stepping away opens a line so that the side to move could capture the enemy king, the side to move wins (reported as `checkmate`). |
 | Draws | Stalemate, 50-move rule, insufficient material, threefold repetition (positions include snail squares and the tick phase). |

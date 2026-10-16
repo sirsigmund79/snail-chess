@@ -87,7 +87,17 @@ export function framesFor(record: MoveRecord, final: ImmortalChessState): Frame[
       fen = serializeFen(p);
       const victim = `${NAME[sm.crushed.color]}'s ${PIECE[sm.crushed.type]}`;
       const crush = { square: sm.to, key: `${record.tick.ply}-${sm.color}` };
-      if (sm.crushed.type === 'k') {
+      if (sm.crushed.type === 'k' && final.drawReason === 'both_kings_crushed') {
+        // Both kings fall in the same snail move: a draw, so no SLIMED finale for either side.
+        const both = sm === record.tick.moves[record.tick.moves.length - 1];
+        frames.push({
+          fen,
+          snails: current,
+          crush,
+          banner: { text: both ? 'Both kings slimed! Draw.' : `${NAME[sm.color]}'s snail crushed ${victim}!`, tone: 'danger' },
+          hold: TIMING.impact,
+        });
+      } else if (sm.crushed.type === 'k') {
         // The impact lands first, then the screen drains to grey and SLIMED comes up.
         frames.push({ fen, snails: current, crush, hold: TIMING.slide });
         frames.push({ fen, snails: current, slimed: { victim: sm.crushed.color, by: sm.color }, hold: TIMING.slimed });

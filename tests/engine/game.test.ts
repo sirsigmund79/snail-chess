@@ -185,3 +185,19 @@ describe('resign', () => {
     expect(resign(r, 'w')).toBe(r);
   });
 });
+
+describe('both kings crushed at once', () => {
+  it('is a draw, not a win for White', () => {
+    const g = createGame({ fen: '4k3/7p/8/8/8/8/P7/4K3 b - - 0 1', snails: { w: 'd7', b: 'd2' }, plyCount: 5 });
+    const after = applyMove(g, { from: 'h7', to: 'h6' });
+    expect(after).toMatchObject({ gameStatus: 'draw', winner: null, drawReason: 'both_kings_crushed' });
+    expect(after.history[0].tick?.moves).toHaveLength(2);
+  });
+
+  it('White still wins when only the Black king is reached', () => {
+    const g = createGame({ fen: '4k3/7p/8/8/8/8/P7/4K3 b - - 0 1', snails: { w: 'd7', b: 'a3' }, plyCount: 5 });
+    const after = applyMove(g, { from: 'h7', to: 'h6' });
+    expect(after).toMatchObject({ gameStatus: 'snail_win_white', winner: 'w' });
+    expect(after.snails.b.square).toBe('a3');
+  });
+});
