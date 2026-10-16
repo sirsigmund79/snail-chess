@@ -22,6 +22,12 @@ export interface SnailWeights {
    * pawns as the snail arrives). Scaled by how close the snail is.
    */
   boxedPenalty: number;
+  /**
+   * Penalty for a king with little room to run while the enemy snail is on its way, scaled by how
+   * many of our moves are left before it would arrive (see roomTerm). This is the long-range
+   * term: the search only sees a few plies, but the snail's arrival is predictable many moves out.
+   */
+  roomPenalty: number;
 }
 
 export const DEFAULT_WEIGHTS: SnailWeights = {
@@ -31,6 +37,7 @@ export const DEFAULT_WEIGHTS: SnailWeights = {
   pathPenalty: 60,
   imminentPenalty: 400,
   boxedPenalty: 350,
+  roomPenalty: 450,
 };
 
 const BOXED_URGENCY: Record<number, number> = { 1: 1, 2: 0.7, 3: 0.35 };
@@ -63,6 +70,60 @@ function boxedTerm(board: Board, king: Square, color: Color, enemySnail: Square,
   const flights = flightSquares(board, king, color, next, [enemySnail, ownSnail]);
   const cramp = flights === 0 ? 1 : flights === 1 ? 0.4 : 0;
   return w.boxedPenalty * urgency * cramp;
+}
+
+/** Moves of warning at which the room term starts (and below which it is at full strength). */
+const ROOM_HORIZON = 12;
+const ROOM_URGENT = 3;
+/** A king that can reach this many safe squares within three steps has room to run. */
+const ROOM_ENOUGH = 6;
+
+/**
+ * Squares the king can reach in up to three steps (one snail cycle's worth of moves) that are at
+ * least two squares from the enemy snail. Own pieces and snails block; enemy pieces can be taken
+ * but not walked through. Attacks are ignored (cheap heuristic).
+ */
+function kingRoom(board: Board, king: Square, color: Color, enemySnail: Square, ownSnail: Square): number {
+  const seen = new Uint8Array(64);
+  const [kf, kr] = sqToCoords(king);
+  let frontier = [[kf, kr]];
+  seen[kr * 8 + kf] = 1;
+  let room = chebyshev(king, enemySnail) >= 2 ? 1 : 0;
+  for (let step = 0; step < 3 && frontier.length; step++) {
+    const next: number[][] = [];
+    for (const [f0, r0] of frontier) {
+      for (let df = -1; df <= 1; df++) {
+        for (let dr = -1; dr <= 1; dr++) {
+          const f = f0 + df;
+          const r = r0 + dr;
+          if (f < 0 || f > 7 || r < 0 || r > 7 || seen[r * 8 + f]) continue;
+          seen[r * 8 + f] = 1;
+          const sq = coordsToSq(f, r);
+          const piece = board[r * 8 + f];
+          if (sq === enemySnail || sq === ownSnail || piece?.color === color) continue;
+          if (chebyshev(sq, enemySnail) >= 2) room++;
+          if (!piece) next.push([f, r]);
+        }
+      }
+    }
+    frontier = next;
+  }
+  return room;
+}
+
+/**
+ * The snail is slow but relentless: standing still, a king is crushed after `d` snail steps
+ * (d = distance to the snail). A king boxed in by its own pieces (uncastled behind its pawns, or
+ * castled into a corner) has to start making room long before the search can see the crush.
+ */
+function roomTerm(board: Board, king: Square, color: Color, enemySnail: Square, ownSnail: Square, movesBeforeTick: number, w: SnailWeights): number {
+  const d = chebyshev(king, enemySnail);
+  const movesLeft = movesBeforeTick + 3 * (d - 1);
+  if (movesLeft >= ROOM_HORIZON) return 0;
+  const urgency = movesLeft <= ROOM_URGENT ? 1 : (ROOM_HORIZON - movesLeft) / (ROOM_HORIZON - ROOM_URGENT);
+  const room = kingRoom(board, king, color, enemySnail, ownSnail);
+  const deficit = Math.min(1, Math.max(0, (ROOM_ENOUGH - room) / (ROOM_ENOUGH - 1)));
+  return w.roomPenalty * urgency * deficit;
 }
 
 const VALUES: Record<string, number> = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
@@ -103,6 +164,9 @@ export function snailEval(
   let score = -w.alpha / dOwn ** w.exponent + w.beta / dEnemy ** w.exponent;
   score -= boxedTerm(board, ownKing, color, enemySnail, ownSnail, w);
   score += boxedTerm(board, enemyKing, enemy, ownSnail, enemySnail, w) / 2;
+  const toMove = turn(state);
+  score -= roomTerm(board, ownKing, color, enemySnail, ownSnail, countMovesBeforeTick(toMove, color, plies), w);
+  score += roomTerm(board, enemyKing, enemy, ownSnail, enemySnail, countMovesBeforeTick(toMove, enemy, plies), w) / 2;
 
   // Our king standing on the enemy snail's next two steps is a trap waiting to close.
   const step1 = nextSnailStep(enemySnail, ownKing, ownSnail);
