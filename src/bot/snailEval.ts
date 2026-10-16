@@ -158,6 +158,24 @@ export function kingInDanger(state: ImmortalChessState): boolean {
   return escapeTerm(board, king, color, castling, snail, state.snails[color].square, moves) > 0;
 }
 
+/**
+ * Do the snails matter for the next few plies? Yes if a snail is within two squares of the king
+ * it hunts, or a snail step lands on a piece within `plies` plies (a crush Stockfish can't see).
+ * Otherwise the position is "calm" and ordinary chess judgement should decide.
+ */
+export function snailsMatter(state: ImmortalChessState, plies: number): boolean {
+  const { board } = parseFen(state.fen);
+  const tickSoon = pliesUntilTick(state.plyCount) <= plies;
+  for (const color of ['w', 'b'] as const) {
+    const target = findKing(board, opposite(color));
+    if (!target) return true;
+    const snail = state.snails[color].square;
+    if (chebyshev(snail, target) <= 2) return true;
+    if (tickSoon && board[sqIndex(nextSnailStep(snail, target, state.snails[opposite(color)].square))]) return true;
+  }
+  return false;
+}
+
 const VALUES: Record<string, number> = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
 
 /** Material + a little centralisation/pawn advancement, from `color`'s point of view. */

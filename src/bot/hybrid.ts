@@ -1,7 +1,7 @@
 import { applyMove, getLegalMoves, turn } from '../engine/game';
 import { engineFen } from '../engine/boardValidator';
 import type { ImmortalChessState, MoveInput } from '../engine/types';
-import { kingInDanger, MATE, materialEval, type ScoredMove } from './snailEval';
+import { kingInDanger, MATE, materialEval, snailEval, snailsMatter, type ScoredMove } from './snailEval';
 import { snailGuard } from './snailGuard';
 import { toUci, type CandidateEngine } from './uci';
 
@@ -72,6 +72,14 @@ const DOOMED = -MATE / 4;
 const EXTRA_WHEN_IN_DANGER = 3;
 const EXTRA_KING_MOVES = 2;
 /**
+ * In calm positions only the static snail terms (king room, distance to the snail) adjust
+ * Stockfish's score, capped so they nudge development and luft without overriding chess.
+ */
+const CALM_CAP = 150;
+/** Sampling limits while the king is in snail danger (Medium's, for every level). */
+const DANGER_MARGIN = 40;
+const DANGER_TEMPERATURE = 20;
+/**
  * Stockfish sees snails as virtual blocker pieces, which it may "use" in its lines (e.g. a fake
  * mate with the blocker knight). Its scores are therefore clamped and never decide the game on
  * their own; only the snail-aware lookahead may report forced wins or losses.
@@ -113,6 +121,12 @@ export async function chooseMove(
   );
   if (!legal.length) throw new Error('No legal moves');
   const side = turn(state);
+  // With the snails far off, Stockfish's judgement decides: the shallow snail search would only
+  // second-guess it with tactics it sees less well (see CALM_CAP).
+  const calm = !snailsMatter(state, cfg.lookahead + 2);
+  // When the king is in snail danger, every level picks carefully (Easy stays careless at chess,
+  // but shouldn't look oblivious to the snail).
+  const pickCfg = kingInDanger(state) ? { ...cfg, margin: Math.min(cfg.margin, DANGER_MARGIN), temperature: Math.min(cfg.temperature, DANGER_TEMPERATURE) } : cfg;
 
   // Cheap full-width snail-tactics pass: Stockfish cannot see snail kills, so a forced snail win
   // (or a checkmate the lookahead proves) must be found here rather than in its candidate list.
@@ -163,14 +177,16 @@ export async function chooseMove(
           const s = snail.find((x) => same(x.move, c.move));
           const snailScore = s?.score ?? 0;
           const child = applyMove(state, c.move, { fast: true, legal });
-          const adjust = snailScore - materialEval(child.fen, side);
+          const adjust = calm
+            ? Math.max(-CALM_CAP, Math.min(CALM_CAP, snailEval(child, side)))
+            : snailScore - materialEval(child.fen, side);
           const sfCp = Math.max(-SF_CLAMP, Math.min(SF_CLAMP, c.cp));
           const final = Math.abs(snailScore) > MATE / 4 ? snailScore : sfCp + adjust;
           return { move: c.move, uci: toUci(c.move), sf: c.cp, snail: snailScore, final };
         });
         rows.sort((a, b) => b.final - a.final);
         if (rows[0].final > DOOMED) {
-          const pick = sampleMove(rows, cfg, rng);
+          const pick = sampleMove(rows, pickCfg, rng);
           return {
             move: pick.move,
             score: pick.final,
@@ -188,7 +204,7 @@ export async function chooseMove(
   const rows = scored
     .map((s) => ({ move: s.move, uci: toUci(s.move), snail: s.score, final: s.score }))
     .sort((a, b) => b.final - a.final);
-  const pick = sampleMove(rows, cfg, rng);
+  const pick = sampleMove(rows, pickCfg, rng);
   return {
     move: pick.move,
     score: pick.final,
