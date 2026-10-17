@@ -60,7 +60,9 @@ for their friend (`GameRules` in `src/engine/types.ts`, kept across rematches): 
 **2, 3 or 4** full moves; **no diagonals** (rook steps along the longer axis, rank on a tie;
 distance is Manhattan); and **weak** snails, which only crush the king they hunt. Any other piece
 blocks a weak snail, so it takes the first step of the shortest path around it (BFS over open
-squares), or an open square that still gets closer if it's walled in, or waits. Bot and same-phone
+squares), or an open square that still gets closer if it's walled in, or waits. A snail that
+waits because it's blocked is recorded in the tick's `bumps`, and playback shows it lunging at
+the square it wanted and being pushed back. Bot and same-phone
 games always use the defaults.
 
 ## Architecture

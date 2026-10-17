@@ -10,6 +10,8 @@ export interface Frame {
   snails: Snails;
   /** Big centred announcement ("White's snail crushed Black's knight!"). */
   banner?: { text: string; tone: 'info' | 'danger' };
+  /** A blocked snail lunges at `toward` and is pushed back; `key` restarts the animation. */
+  bump?: { color: Color; toward: Square; key: string };
   /** One-shot impact effect; `key` changes each time so the animation restarts. */
   crush?: { square: Square; key: string };
   /** Snails are about to move: make their target squares throb. */
@@ -37,6 +39,7 @@ export const TIMING = {
   impact: 1100,
   slimed: 4800,
   quietStep: 350,
+  bump: 800,
 };
 
 /** Wording for the warning before the snails move, one per snail move in order, then looping. */
@@ -64,7 +67,8 @@ export const stirPhrase = (tickPly: number, interval = 6) =>
 
 /**
  * Break a move that triggered a snail tick into separate beats: the move lands, a warning
- * banner, then each snail slides in turn (the slide itself shows where it went). A crush gets its
+ * banner, then each snail slides in turn (the slide itself shows where it went), or bumps
+ * against whatever blocks it. A crush gets its
  * own banner; a crushed king hands over to the SLIMED finale.
  */
 export function framesFor(record: MoveRecord, final: ImmortalChessState): Frame[] {
@@ -78,39 +82,43 @@ export function framesFor(record: MoveRecord, final: ImmortalChessState): Frame[
   frames.push({ fen, snails: current, hold: TIMING.afterMove });
   frames.push({ fen, snails: current, imminent: true, banner: { text: stirPhrase(record.tick.ply, tickInterval(final.rules)), tone: 'info' }, hold: TIMING.stir });
 
-  for (const sm of record.tick.moves) {
-    current = { ...current, [sm.color]: { ...current[sm.color], square: sm.to } };
-    // Slide onto the square while the victim is still standing there…
-    frames.push({ fen, snails: current, hold: sm.crushed ? TIMING.slide : TIMING.slide + TIMING.quietStep });
-    if (sm.crushed) {
-      // …then crush it.
-      const p = parseFen(fen);
-      p.board[sqIndex(sm.to)] = null;
-      fen = serializeFen(p);
-      const victim = `${NAME[sm.crushed.color]}'s ${PIECE[sm.crushed.type]}`;
-      const crush = { square: sm.to, key: `${record.tick.ply}-${sm.color}` };
-      if (sm.crushed.type === 'k' && final.drawReason === 'both_kings_crushed') {
-        // Both kings fall in the same snail move: a draw, so no SLIMED finale for either side.
-        const both = sm === record.tick.moves[record.tick.moves.length - 1];
-        frames.push({
-          fen,
-          snails: current,
-          crush,
-          banner: { text: both ? 'Both kings slimed! Draw.' : `${NAME[sm.color]}'s snail crushed ${victim}!`, tone: 'danger' },
-          hold: TIMING.impact,
-        });
-      } else if (sm.crushed.type === 'k') {
-        // The impact lands first, then the screen drains to grey and SLIMED comes up.
-        frames.push({ fen, snails: current, crush, hold: TIMING.slide });
-        frames.push({ fen, snails: current, slimed: { victim: sm.crushed.color, by: sm.color }, hold: TIMING.slimed });
-      } else {
-        frames.push({
-          fen,
-          snails: current,
-          crush,
-          banner: { text: `${NAME[sm.color]}'s snail crushed ${victim}!`, tone: 'danger' },
-          hold: TIMING.impact,
-        });
+  for (const color of ['w', 'b'] as const) {
+    const bump = record.tick.bumps?.find((b) => b.color === color);
+    if (bump) frames.push({ fen, snails: current, bump: { color, toward: bump.toward, key: `${record.tick.ply}-${color}` }, hold: TIMING.bump });
+    for (const sm of record.tick.moves.filter((m) => m.color === color)) {
+      current = { ...current, [sm.color]: { ...current[sm.color], square: sm.to } };
+      // Slide onto the square while the victim is still standing there…
+      frames.push({ fen, snails: current, hold: sm.crushed ? TIMING.slide : TIMING.slide + TIMING.quietStep });
+      if (sm.crushed) {
+        // …then crush it.
+        const p = parseFen(fen);
+        p.board[sqIndex(sm.to)] = null;
+        fen = serializeFen(p);
+        const victim = `${NAME[sm.crushed.color]}'s ${PIECE[sm.crushed.type]}`;
+        const crush = { square: sm.to, key: `${record.tick.ply}-${sm.color}` };
+        if (sm.crushed.type === 'k' && final.drawReason === 'both_kings_crushed') {
+          // Both kings fall in the same snail move: a draw, so no SLIMED finale for either side.
+          const both = sm === record.tick.moves[record.tick.moves.length - 1];
+          frames.push({
+            fen,
+            snails: current,
+            crush,
+            banner: { text: both ? 'Both kings slimed! Draw.' : `${NAME[sm.color]}'s snail crushed ${victim}!`, tone: 'danger' },
+            hold: TIMING.impact,
+          });
+        } else if (sm.crushed.type === 'k') {
+          // The impact lands first, then the screen drains to grey and SLIMED comes up.
+          frames.push({ fen, snails: current, crush, hold: TIMING.slide });
+          frames.push({ fen, snails: current, slimed: { victim: sm.crushed.color, by: sm.color }, hold: TIMING.slimed });
+        } else {
+          frames.push({
+            fen,
+            snails: current,
+            crush,
+            banner: { text: `${NAME[sm.color]}'s snail crushed ${victim}!`, tone: 'danger' },
+            hold: TIMING.impact,
+          });
+        }
       }
     }
   }

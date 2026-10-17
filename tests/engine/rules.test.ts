@@ -86,6 +86,17 @@ describe('weak snails', () => {
     expect(r.crushedKing).toBe('b');
   });
 
+  it('stay put when blocked, and record what they bumped toward', () => {
+    // Straight + weak, after 1. b4 b5 2. c4 d5: each snail's way is the other snail or a pawn.
+    const { board } = parseFen('rnbqkbnr/p1p1pppp/8/1p1p4/1PP5/8/P2PPPPP/RNBQKBNR w KQkq - 0 5');
+    const r = applySnailTick(board, snails('a4', 'a5'), rules({ strength: 'weak', movement: 'straight' }));
+    expect(r.moves).toEqual([]);
+    expect(r.bumps).toEqual([
+      { color: 'w', square: 'a4', toward: 'a5' },
+      { color: 'b', square: 'a5', toward: 'a4' },
+    ]);
+  });
+
   it('combine with straight movement', () => {
     // a4 -> e8 straight: a5 holds a pawn, so it goes b4 (also 7 rook steps away).
     const { board } = parseFen('4k3/8/8/P7/8/8/8/4K3 w - - 0 1');

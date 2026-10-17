@@ -1,5 +1,5 @@
 import { coordsToSq, findKing, onBoard, sqIndex, sqToCoords, type Board } from './fen';
-import { DEFAULT_RULES, type Color, type GameRules, type SnailMove, type SnailState, type Square } from './types';
+import { DEFAULT_RULES, type Color, type GameRules, type SnailBump, type SnailMove, type SnailState, type Square } from './types';
 
 export function chebyshev(a: Square, b: Square): number {
   const [af, ar] = sqToCoords(a);
@@ -52,7 +52,7 @@ function neighbours(sq: Square, movement: GameRules['movement']): Square[] {
 }
 
 /** The step a snail takes on an open board: diagonal when both axes differ, or along the longer axis (rank on a tie) when it moves straight. */
-function primaryStep(from: Square, target: Square, movement: GameRules['movement']): Square {
+export function primaryStep(from: Square, target: Square, movement: GameRules['movement']): Square {
   const [sf, sr] = sqToCoords(from);
   const [tf, tr] = sqToCoords(target);
   const df = Math.sign(tf - sf);
@@ -129,6 +129,8 @@ export interface TickResult {
   board: Board;
   snails: { w: SnailState; b: SnailState };
   moves: SnailMove[];
+  /** Snails that couldn't step (in White-then-Black order, like `moves`). */
+  bumps: SnailBump[];
   /** Colour of the king that was crushed, if any; 'both' if both snails got a king (a draw). */
   crushedKing: Color | 'both' | null;
 }
@@ -146,6 +148,7 @@ export function applySnailTick(
   const next: Board = board.slice();
   const out = { w: { ...snails.w }, b: { ...snails.b } };
   const moves: SnailMove[] = [];
+  const bumps: SnailBump[] = [];
 
   for (const color of ['w', 'b'] as const) {
     const enemy: Color = color === 'w' ? 'b' : 'w';
@@ -153,7 +156,10 @@ export function applySnailTick(
     if (!target) continue;
     const snail = out[color];
     const to = nextSnailStep(snail.square, target, out[enemy].square, rules, next);
-    if (to === snail.square) continue;
+    if (to === snail.square) {
+      if (snail.square !== target) bumps.push({ color, square: snail.square, toward: primaryStep(snail.square, target, rules.movement) });
+      continue;
+    }
     const idx = sqIndex(to);
     const crushed = next[idx] ?? undefined;
     next[idx] = null;
@@ -166,10 +172,10 @@ export function applySnailTick(
         next[sqIndex(king)] = null;
         moves.push({ color: 'b', from, to: king, crushed: { type: 'k', color: 'w' } });
         out.b.square = king;
-        return { board: next, snails: out, moves, crushedKing: 'both' };
+        return { board: next, snails: out, moves, bumps, crushedKing: 'both' };
       }
-      return { board: next, snails: out, moves, crushedKing: crushed.color };
+      return { board: next, snails: out, moves, bumps, crushedKing: crushed.color };
     }
   }
-  return { board: next, snails: out, moves, crushedKing: null };
+  return { board: next, snails: out, moves, bumps, crushedKing: null };
 }

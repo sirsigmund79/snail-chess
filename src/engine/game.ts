@@ -164,7 +164,7 @@ export function applyMove(
     const result = applySnailTick(parsed.board, snails, state.rules);
     snails = result.snails;
     crushedKing = result.crushedKing;
-    tick = { ply: plyCount, moves: result.moves };
+    tick = { ply: plyCount, moves: result.moves, ...(result.bumps.length ? { bumps: result.bumps } : {}) };
     parsed.board = result.board;
     parsed.castling = sanitizeCastling(parsed);
     if (parsed.ep && !epStillValid(parsed, snails)) parsed.ep = null;

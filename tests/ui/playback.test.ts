@@ -13,6 +13,20 @@ describe('snail playback frames', () => {
     expect(frames.some((f) => f.crush?.square === 'e7')).toBe(true);
   });
 
+  it('plays a blocked snail as a bump, White first, without moving it', () => {
+    const g = createGame({
+      fen: 'rnbqkbnr/p1p1pppp/8/1p1p4/1PP5/8/P2PPPPP/RNBQKBNR b KQkq - 0 4',
+      rules: { movesPerTick: 2, movement: 'straight', strength: 'weak' },
+      plyCount: 3,
+    });
+    const after = applyMove(g, { from: 'h7', to: 'h6' });
+    const bumps = framesFor(after.history[0], after).filter((f) => f.bump);
+    expect(bumps.map((f) => [f.bump!.color, f.bump!.toward, f.snails[f.bump!.color].square])).toEqual([
+      ['w', 'a5', 'a4'],
+      ['b', 'a4', 'a5'],
+    ]);
+  });
+
   it('shows a double crush as a draw, without the SLIMED finale', () => {
     const g = createGame({ fen: '4k3/7p/8/8/8/8/P7/4K3 b - - 0 1', snails: { w: 'd7', b: 'd2' }, plyCount: 5 });
     const after = applyMove(g, { from: 'h7', to: 'h6' });

@@ -39,10 +39,20 @@ export interface SnailMove {
   crushed?: Piece;
 }
 
+/** A snail that couldn't step this tick: it stays on `square`, short of `toward`. */
+export interface SnailBump {
+  color: Color;
+  square: Square;
+  /** The square it heads for on an open board (blocked by a piece or the other snail). */
+  toward: Square;
+}
+
 export interface TickEvent {
   /** Ply count at which this tick happened. */
   ply: number;
   moves: SnailMove[];
+  /** Snails that were blocked and stayed put, so playback can show them bump. */
+  bumps?: SnailBump[];
 }
 
 export interface MoveInput {

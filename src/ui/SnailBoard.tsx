@@ -65,6 +65,32 @@ export function SnailBoard({ frame, rules, lastMove, orientation, interactive, i
     return { color, square: snail.square, next, faceLeft: movesLeftOnScreen };
   });
 
+  // A blocked snail lunges a little way toward the square it wanted, then gets pushed back.
+  const bump = frame.bump;
+  useEffect(() => {
+    const el = bump && shakeRef.current?.querySelector<HTMLElement>(`[data-testid="snail-piece-${bump.color}"]`);
+    if (!bump || !el?.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const [sf, sr] = sqToCoords(frame.snails[bump.color].square);
+    const [tf, tr] = sqToCoords(bump.toward);
+    const flip = orientation === 'white' ? 1 : -1;
+    // Percentages of the snail's own box, i.e. of one square.
+    const x = (tf - sf) * flip;
+    const y = (sr - tr) * flip;
+    const at = (k: number) => `translate(${x * k}%, ${y * k}%)`;
+    el.animate(
+      [
+        { transform: at(0) },
+        { transform: `${at(30)} scale(0.94)`, offset: 0.4 },
+        { transform: `${at(-6)} scale(1.03)`, offset: 0.65 },
+        { transform: at(2), offset: 0.85 },
+        { transform: at(0) },
+      ],
+      { duration: 650, easing: 'ease-in-out' },
+    );
+    // Keyed on the bump alone: the snail's square and the orientation don't change mid-bump.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bump?.key]);
+
   // Squares the selected (or dragged) piece can legally reach, snail rules included.
   const activeFrom = dragFrom ?? selected;
   const legalTargets = useMemo(() => {
