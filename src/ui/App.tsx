@@ -61,6 +61,7 @@ function InviteButton() {
 
 function OnlineRoom({ roomId }: { roomId: string }) {
   const online = useOnlineGame(roomId);
+  const [more, setMore] = useState(false);
   const { room, you } = online;
 
   if (!room) {
@@ -86,10 +87,20 @@ function OnlineRoom({ roomId }: { roomId: string }) {
           The game starts when they open it.
         </p>
         <Seg name="You play" value={you} options={[['w', NAME.w], ['b', NAME.b]]} onPick={online.chooseColor} />
-        <Seg name="Snails move every" value={rules.movesPerTick} options={[[2, '2 moves'], [3, '3 moves'], [4, '4 moves']]} onPick={(movesPerTick) => setRules({ movesPerTick })} />
-        <Seg name="Snail movement" value={rules.movement} options={[['diagonal', 'Standard'], ['straight', 'No diagonals']]} onPick={(movement) => setRules({ movement })} />
-        <Seg name="Snail strength" value={rules.strength} options={[['unstoppable', 'Unstoppable'], ['weak', 'Weak']]} onPick={(strength) => setRules({ strength })} />
-        <p className="muted small">{rules.strength === 'weak' ? 'Weak snails only crush kings and go around everything else.' : 'Unstoppable snails crush whatever they land on.'}</p>
+        <button className="more-toggle" aria-expanded={more} aria-controls="more-settings" onClick={() => setMore(!more)}>
+          More game settings
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        {more && (
+          <div id="more-settings" className="more-settings">
+            <Seg name="Snails move every" value={rules.movesPerTick} options={[[2, '2 moves'], [3, '3 moves'], [4, '4 moves']]} onPick={(movesPerTick) => setRules({ movesPerTick })} />
+            <Seg name="Snail movement" value={rules.movement} options={[['diagonal', 'Standard'], ['straight', 'No diagonals']]} onPick={(movement) => setRules({ movement })} />
+            <Seg name="Snail strength" value={rules.strength} options={[['unstoppable', 'Unstoppable'], ['weak', 'Weak']]} onPick={(strength) => setRules({ strength })} />
+            <p className="muted small">{rules.strength === 'weak' ? 'Weak snails only crush kings and go around everything else.' : 'Unstoppable snails crush whatever they land on.'}</p>
+          </div>
+        )}
         <InviteButton />
         <Link className="btn ghost" to="/">
           Back to the game

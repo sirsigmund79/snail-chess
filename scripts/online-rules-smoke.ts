@@ -31,6 +31,10 @@ await host.goto(base);
 await host.click('button[aria-label="Menu"]');
 await host.click('text=Play a friend online');
 await host.waitForSelector('text=Send this link to a friend');
+// The variant rules stay folded away until asked for.
+if (await host.locator('.seg[aria-label="Snails move every"]').count()) throw new Error('more settings shown before opening');
+await host.screenshot({ path: `${dir}/online-rules-closed.png` });
+await host.click('text=More game settings');
 await pick(host, 'Snails move every', '2 moves');
 await pick(host, 'Snail movement', 'No diagonals');
 await pick(host, 'Snail strength', 'Weak');

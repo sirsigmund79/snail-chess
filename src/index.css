@@ -274,3 +274,7 @@ html[data-theme='bubblegum'] .brand span { background: var(--brand); -webkit-bac
   .slimed-overlay { animation: none; background: rgba(28, 25, 23, 0.35); }
 }
 .room .small { font-size: 13px; margin: 0; max-width: 320px; }
+.more-toggle { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: var(--soft); }
+.more-toggle svg { width: 18px; height: 18px; transition: transform 0.15s; }
+.more-toggle[aria-expanded='true'] svg { transform: rotate(180deg); }
+.more-settings { width: 100%; display: grid; gap: 12px; justify-items: center; }
