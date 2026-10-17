@@ -6,11 +6,12 @@ import { legalMoves } from '../engine/boardValidator';
 import { nextSnailStep } from '../engine/snailEngine';
 import { SnailIcon } from './SnailIcon';
 import { ACTIVE_THEME as T } from './theme';
-import type { Color, MoveInput, MoveRecord, Square } from '../engine/types';
+import type { Color, GameRules, MoveInput, MoveRecord, Square } from '../engine/types';
 import type { Frame } from './usePlayback';
 
 interface Props {
   frame: Frame;
+  rules: GameRules;
   lastMove?: MoveRecord;
   orientation: 'white' | 'black';
   interactive: boolean;
@@ -30,7 +31,7 @@ function place(sq: Square, orientation: 'white' | 'black') {
   return { left: `${col * 12.5}%`, top: `${row * 12.5}%` };
 }
 
-export function SnailBoard({ frame, lastMove, orientation, interactive, imminent, busy, onSkip, onMove }: Props) {
+export function SnailBoard({ frame, rules, lastMove, orientation, interactive, imminent, busy, onSkip, onMove }: Props) {
   const [selected, setSelected] = useState<Square | null>(null);
   const [dragFrom, setDragFrom] = useState<Square | null>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
@@ -57,7 +58,7 @@ export function SnailBoard({ frame, lastMove, orientation, interactive, imminent
     const enemy: Color = color === 'w' ? 'b' : 'w';
     const snail = frame.snails[color];
     const king = findKing(board, enemy);
-    const next = king ? nextSnailStep(snail.square, king, frame.snails[enemy].square) : snail.square;
+    const next = king ? nextSnailStep(snail.square, king, frame.snails[enemy].square, rules, board) : snail.square;
     const [sf] = sqToCoords(snail.square);
     const [nf] = sqToCoords(next);
     const movesLeftOnScreen = orientation === 'white' ? nf < sf : nf > sf;

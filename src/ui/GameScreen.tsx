@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { track } from '../analytics';
 import { turn } from '../engine/game';
+import { tickInterval } from '../engine/snailEngine';
 import type { Color, ImmortalChessState } from '../engine/types';
 import { generateRoomCode } from '../network/roomCode';
-import { MovesSheet, ResignSheet, ResultCard, RulesSheet, SettingsSheet, type ResultInfo, type Settings } from './Sheets';
+import { MovesSheet, ResignSheet, ResultCard, RulesSheet, rulesSummary, SettingsSheet, type ResultInfo, type Settings } from './Sheets';
 import { SlimedOverlay } from './SlimedOverlay';
 import { SnailBoard } from './SnailBoard';
 import { SnailIcon } from './SnailIcon';
@@ -45,12 +46,12 @@ const Svg = ({ children }: { children: React.ReactNode }) => (
   </svg>
 );
 
-/** Each player's three moves in the snail cycle, then their snail (coral only while the snails move). */
-function MoveDots({ color, done, active, moving }: { color: Color; done: number; active: boolean; moving: boolean }) {
-  const label = moving ? 'The snails are moving' : `${NAME[color]}: ${done} of 3 moves before the snails move`;
+/** Each player's moves in the snail cycle (3 by default), then their snail (coral only while the snails move). */
+function MoveDots({ color, done, total, active, moving }: { color: Color; done: number; total: number; active: boolean; moving: boolean }) {
+  const label = moving ? 'The snails are moving' : `${NAME[color]}: ${done} of ${total} moves before the snails move`;
   return (
     <div className="dots" role="img" aria-label={label} data-testid={`dots-${color}`}>
-      {[0, 1, 2].map((i) => (
+      {Array.from({ length: total }, (_, i) => (
         <span key={i} className={`dot${i < done ? ' on' : ''}${active && i === done ? ' active' : ''}`} />
       ))}
       <SnailIcon side={color} className={`dot-snail${moving ? ' moving' : ''}`} />
@@ -204,9 +205,11 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
   const bottom: Color = orientation === 'white' ? 'w' : 'b';
   const top = other(bottom);
 
-  // Move dots: plies played in the current 6-ply cycle, split by colour.
-  const p = state.plyCount % 6;
-  const done: Record<Color, number> = snailsMoving ? { w: 3, b: 3 } : { w: Math.ceil(p / 2), b: Math.floor(p / 2) };
+  // Move dots: plies played in the current snail cycle, split by colour.
+  const interval = tickInterval(state.rules);
+  const perTick = state.rules.movesPerTick;
+  const p = state.plyCount % interval;
+  const done: Record<Color, number> = snailsMoving ? { w: perTick, b: perTick } : { w: Math.ceil(p / 2), b: Math.floor(p / 2) };
   const toMove = turn(state);
 
   const player = (c: Color) => {
@@ -228,7 +231,7 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
           <b>{name}</b> {sub && <span>{sub}</span>}
           {status && <em> · {status}</em>}
         </div>
-        <MoveDots color={c} done={done[c]} active={!over && !playback.busy && toMove === c} moving={snailsMoving} />
+        <MoveDots color={c} done={done[c]} total={perTick} active={!over && !playback.busy && toMove === c} moving={snailsMoving} />
       </section>
     );
   };
@@ -249,7 +252,7 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
       </header>
       {online && (
         <p className="room-tag" data-testid="room-tag">
-          Room: {online.roomId}
+          Room: {online.roomId} · {rulesSummary(state.rules)}
         </p>
       )}
       <MoveStrip state={state} hideLastTick={playback.busy} />
@@ -260,10 +263,11 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
       <div className="board-wrap">
         <SnailBoard
           frame={playback.frame}
+          rules={state.rules}
           lastMove={last}
           orientation={orientation}
           interactive={!over && !game.isBotTurn && !playback.busy}
-          imminent={!over && !playback.busy && state.plyCount % 6 === 5}
+          imminent={!over && !playback.busy && state.plyCount % interval === interval - 1}
           busy={playback.busy}
           onSkip={playback.skip}
           onMove={game.play}
@@ -299,7 +303,7 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
           onDismiss={() => setReviewing(true)}
         />
       )}
-      {sheet === 'rules' && <RulesSheet onClose={() => setSheet(null)} />}
+      {sheet === 'rules' && <RulesSheet rules={state.rules} onClose={() => setSheet(null)} />}
       {sheet === 'moves' && <MovesSheet state={state} onClose={() => setSheet(null)} />}
       {sheet === 'resign' && (
         <ResignSheet

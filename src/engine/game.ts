@@ -1,10 +1,12 @@
 import { Chess, type Move } from 'chess.js';
 import { legalMoves, inCheck, kingAttacked, moveMatches, sanFor, shadowGame } from './boardValidator';
 import { opposite, parseFen, sanitizeCastling, serializeFen, sqIndex, sqToCoords } from './fen';
-import { applySnailTick, isTickPly } from './snailEngine';
+import { applySnailTick, isTickPly, tickInterval } from './snailEngine';
 import {
+  DEFAULT_RULES,
   DEFAULT_SNAILS,
   type Color,
+  type GameRules,
   type ImmortalChessState,
   type MoveInput,
   type MoveRecord,
@@ -19,6 +21,7 @@ export interface CreateGameOptions {
   fen?: string;
   snails?: { w: Square; b: Square };
   plyCount?: number;
+  rules?: GameRules;
 }
 
 export function createGame(opts: CreateGameOptions = {}): ImmortalChessState {
@@ -35,6 +38,7 @@ export function createGame(opts: CreateGameOptions = {}): ImmortalChessState {
   parsed.castling = sanitizeCastling(parsed);
   const fen = serializeFen(parsed);
   const base: ImmortalChessState = {
+    rules: opts.rules ?? DEFAULT_RULES,
     fen,
     plyCount: opts.plyCount ?? 0,
     snails,
@@ -48,9 +52,9 @@ export function createGame(opts: CreateGameOptions = {}): ImmortalChessState {
 }
 
 /** Repetition key: placement, turn, castling, en passant, snail squares, and tick phase. */
-export function positionKey(s: Pick<ImmortalChessState, 'fen' | 'snails' | 'plyCount'>): string {
+export function positionKey(s: Pick<ImmortalChessState, 'fen' | 'snails' | 'plyCount' | 'rules'>): string {
   const [placement, turn, castling, ep] = s.fen.split(' ');
-  return `${placement} ${turn} ${castling} ${ep} ${s.snails.w.square}${s.snails.b.square} ${s.plyCount % 6}`;
+  return `${placement} ${turn} ${castling} ${ep} ${s.snails.w.square}${s.snails.b.square} ${s.plyCount % tickInterval(s.rules)}`;
 }
 
 export function turn(state: ImmortalChessState): Color {
@@ -65,7 +69,7 @@ export function getLegalMoves(state: ImmortalChessState) {
 type StatusFields = Pick<ImmortalChessState, 'gameStatus' | 'winner' | 'drawReason' | 'endReason'>;
 
 function evaluateStatus(
-  state: Pick<ImmortalChessState, 'fen' | 'snails' | 'plyCount' | 'positionCounts'>,
+  state: Pick<ImmortalChessState, 'fen' | 'snails' | 'plyCount' | 'positionCounts' | 'rules'>,
 ): StatusFields {
   const side = state.fen.split(' ')[1] as Color;
   const enemy = opposite(side);
@@ -155,9 +159,9 @@ export function applyMove(
   let tick: TickEvent | undefined;
   let crushedKing: Color | 'both' | null = null;
   let fenBeforeTick: string | undefined;
-  if (isTickPly(plyCount)) {
+  if (isTickPly(plyCount, state.rules)) {
     fenBeforeTick = fen;
-    const result = applySnailTick(parsed.board, snails);
+    const result = applySnailTick(parsed.board, snails, state.rules);
     snails = result.snails;
     crushedKing = result.crushedKing;
     tick = { ply: plyCount, moves: result.moves };
@@ -180,6 +184,7 @@ export function applyMove(
   };
 
   const next: ImmortalChessState = {
+    rules: state.rules,
     fen,
     plyCount,
     snails,

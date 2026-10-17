@@ -1,12 +1,29 @@
 import { useState } from 'react';
 import { BrowserRouter, Link, Route, Routes, useParams } from 'react-router-dom';
 import { track } from '../analytics';
+import type { GameRules } from '../engine/types';
 import { isRoomCode } from '../network/roomCode';
 import { GameScreen } from './GameScreen';
 import { SnailIcon } from './SnailIcon';
 import { useOnlineGame } from './useOnlineGame';
 
 const NAME = { w: 'White', b: 'Black' } as const;
+
+/** A labelled row of radio buttons, as in the new game menu. */
+function Seg<T extends string | number>({ name, value, options, onPick }: { name: string; value: T; options: [T, string][]; onPick: (v: T) => void }) {
+  return (
+    <div className="field">
+      <span className="field-label">{name}</span>
+      <div className="seg" role="radiogroup" aria-label={name}>
+        {options.map(([v, label]) => (
+          <button key={v} role="radio" aria-checked={value === v} className={value === v ? 'on' : ''} onClick={() => onPick(v)}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function RoomMessage({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -59,6 +76,8 @@ function OnlineRoom({ roomId }: { roomId: string }) {
   // Until a friend has taken the other seat, show the invite.
   const waiting = you !== 'spectator' && !room.seats[you === 'w' ? 'b' : 'w'].taken && room.moves.length === 0;
   if (waiting) {
+    const rules = room.rules;
+    const setRules = (change: Partial<GameRules>) => online.chooseRules({ ...rules, ...change });
     return (
       <RoomMessage title={`Room ${roomId}`}>
         <p className="muted">
@@ -66,16 +85,11 @@ function OnlineRoom({ roomId }: { roomId: string }) {
           <br />
           The game starts when they open it.
         </p>
-        <div className="field">
-          <span className="field-label">You play</span>
-          <div className="seg" role="radiogroup" aria-label="You play">
-            {(['w', 'b'] as const).map((c) => (
-              <button key={c} role="radio" aria-checked={you === c} className={you === c ? 'on' : ''} onClick={() => online.chooseColor(c)}>
-                {NAME[c]}
-              </button>
-            ))}
-          </div>
-        </div>
+        <Seg name="You play" value={you} options={[['w', NAME.w], ['b', NAME.b]]} onPick={online.chooseColor} />
+        <Seg name="Snails move every" value={rules.movesPerTick} options={[[2, '2 moves'], [3, '3 moves'], [4, '4 moves']]} onPick={(movesPerTick) => setRules({ movesPerTick })} />
+        <Seg name="Snail movement" value={rules.movement} options={[['diagonal', 'Standard'], ['straight', 'No diagonals']]} onPick={(movement) => setRules({ movement })} />
+        <Seg name="Snail strength" value={rules.strength} options={[['unstoppable', 'Unstoppable'], ['weak', 'Weak']]} onPick={(strength) => setRules({ strength })} />
+        <p className="muted small">{rules.strength === 'weak' ? 'Weak snails only crush kings and go around everything else.' : 'Unstoppable snails crush whatever they land on.'}</p>
         <InviteButton />
         <Link className="btn ghost" to="/">
           Back to the game

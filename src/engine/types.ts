@@ -63,9 +63,25 @@ export interface MoveRecord extends MoveInput {
   tick?: TickEvent;
 }
 
+/** Variant rules, picked by the host of an online game. Local games always use DEFAULT_RULES. */
+export interface GameRules {
+  /** Full moves (one by each side) between snail steps. */
+  movesPerTick: 2 | 3 | 4;
+  /** 'diagonal': one king step along the shortest path. 'straight': rook-like steps only. */
+  movement: 'diagonal' | 'straight';
+  /**
+   * 'unstoppable': crush whatever is on the landing square. 'weak': only the hunted king can be
+   * crushed; any other piece is in the way, so the snail steps along the new shortest path around it.
+   */
+  strength: 'unstoppable' | 'weak';
+}
+
+export const DEFAULT_RULES: GameRules = { movesPerTick: 3, movement: 'diagonal', strength: 'unstoppable' };
+
 export interface ImmortalChessState {
+  rules: GameRules;
   fen: string;
-  /** Number of half-moves played. A snail tick happens whenever this hits a multiple of 6. */
+  /** Number of half-moves played. A snail tick happens whenever this hits a multiple of 2 × movesPerTick. */
   plyCount: number;
   snails: { w: SnailState; b: SnailState };
   gameStatus: GameStatus;
@@ -78,5 +94,6 @@ export interface ImmortalChessState {
   positionCounts: Record<string, number>;
 }
 
+/** Plies between ticks under the default rules; see tickInterval() for the variants. */
 export const TICK_INTERVAL = 6;
 export const DEFAULT_SNAILS: { w: Square; b: Square } = { w: 'a4', b: 'a5' };

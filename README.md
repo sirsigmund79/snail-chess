@@ -55,6 +55,14 @@ by hand.
 | Snail exposes a king | If a snail stepping away opens a line so that the side to move could capture the enemy king, the side to move wins (reported as `checkmate`). |
 | Draws | Stalemate, 50-move rule, insufficient material, threefold repetition (positions include snail squares and the tick phase). |
 
+**Online variants.** The person who creates an online room can change three rules while waiting
+for their friend (`GameRules` in `src/engine/types.ts`, kept across rematches): snails step every
+**2, 3 or 4** full moves; **no diagonals** (rook steps along the longer axis, rank on a tie;
+distance is Manhattan); and **weak** snails, which only crush the king they hunt. Any other piece
+blocks a weak snail, so it takes the first step of the shortest path around it (BFS over open
+squares), or an open square that still gets closer if it's walled in, or waits. Bot and same-phone
+games always use the defaults.
+
 ## Architecture
 
 ```

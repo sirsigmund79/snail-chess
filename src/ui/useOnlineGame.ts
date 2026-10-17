@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { applyMove, createGame, IllegalMoveError, resign, turn } from '../engine/game';
-import type { Color, ImmortalChessState, MoveInput } from '../engine/types';
+import type { Color, GameRules, ImmortalChessState, MoveInput } from '../engine/types';
 import { gameEvents, track } from '../analytics';
-import { LIMITS, roomSocketPath, type ClientMessage, type RoomState, type ServerMessage } from '../network/protocol';
+import { cleanRules, LIMITS, roomSocketPath, type ClientMessage, type RoomState, type ServerMessage } from '../network/protocol';
 import { ACTIVE_THEME } from './theme';
 import { usePlayback } from './usePlayback';
 
@@ -24,13 +24,17 @@ let memoId: string | null = null;
 const myId = () => (memoId ??= playerId());
 
 const sameMove = (a: MoveInput, b: MoveInput) => a.from === b.from && a.to === b.to && (a.promotion ?? '') === (b.promotion ?? '');
+const sameRules = (a: GameRules, b: GameRules) => a.movesPerTick === b.movesPerTick && a.movement === b.movement && a.strength === b.strength;
 
 /** Rebuild from the server's state, reusing `prev` when it's a prefix (so only new moves animate). */
-function sync(prev: ImmortalChessState, moves: MoveInput[], resigned: Color | null): ImmortalChessState {
+function sync(prev: ImmortalChessState, moves: MoveInput[], rules: GameRules, resigned: Color | null): ImmortalChessState {
   const h = prev.history;
   const prefix =
-    (prev.gameStatus !== 'resigned' || !!resigned) && h.length <= moves.length && h.every((m, i) => sameMove(m, moves[i]));
-  let s = prefix ? prev : createGame();
+    sameRules(prev.rules, rules) &&
+    (prev.gameStatus !== 'resigned' || !!resigned) &&
+    h.length <= moves.length &&
+    h.every((m, i) => sameMove(m, moves[i]));
+  let s = prefix ? prev : createGame({ rules });
   for (let i = s.history.length; i < moves.length; i++) s = applyMove(s, moves[i]);
   return resigned ? resign(s, resigned) : s;
 }
@@ -72,7 +76,7 @@ export function useOnlineGame(roomId: string) {
         setRoom(msg);
         setState((prev) => {
           try {
-            return sync(prev, msg.moves, msg.resigned);
+            return sync(prev, msg.moves, cleanRules(msg.rules), msg.resigned);
           } catch {
             return prev;
           }
@@ -167,6 +171,9 @@ export function useOnlineGame(roomId: string) {
   /** The host picks a colour while waiting for their friend. */
   const chooseColor = useCallback((color: Color) => send({ type: 'seat', color }), [send]);
 
+  /** The host picks the variant rules while waiting for their friend. */
+  const chooseRules = useCallback((rules: GameRules) => send({ type: 'rules', rules }), [send]);
+
   const seats = room?.seats ?? { w: { taken: false, online: false }, b: { taken: false, online: false } };
   const opponent: Color | null = you === 'spectator' ? null : you === 'w' ? 'b' : 'w';
 
@@ -178,6 +185,7 @@ export function useOnlineGame(roomId: string) {
     rematch,
     resign: resignGame,
     chooseColor,
+    chooseRules,
     connection,
     /** Null until the server has answered. */
     room,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { parseFen, serializeFen, sqIndex } from '../engine/fen';
+import { tickInterval } from '../engine/snailEngine';
 import type { Color, ImmortalChessState, MoveRecord, Piece, SnailState, Square } from '../engine/types';
 
 type Snails = { w: SnailState; b: SnailState };
@@ -57,8 +58,9 @@ export const STIR_PHRASES = [
   'The snails glide forward…',
 ];
 
-/** Phrase for the n-th snail move of the game (ticks happen at plies 6, 12, 18, …). */
-export const stirPhrase = (tickPly: number) => STIR_PHRASES[(Math.max(1, Math.round(tickPly / 6)) - 1) % STIR_PHRASES.length];
+/** Phrase for the n-th snail move of the game (ticks happen every `interval` plies: 6, 12, 18, … by default). */
+export const stirPhrase = (tickPly: number, interval = 6) =>
+  STIR_PHRASES[(Math.max(1, Math.round(tickPly / interval)) - 1) % STIR_PHRASES.length];
 
 /**
  * Break a move that triggered a snail tick into separate beats: the move lands, a warning
@@ -74,7 +76,7 @@ export function framesFor(record: MoveRecord, final: ImmortalChessState): Frame[
   let fen = record.fenBeforeTick;
   let current = snails;
   frames.push({ fen, snails: current, hold: TIMING.afterMove });
-  frames.push({ fen, snails: current, imminent: true, banner: { text: stirPhrase(record.tick.ply), tone: 'info' }, hold: TIMING.stir });
+  frames.push({ fen, snails: current, imminent: true, banner: { text: stirPhrase(record.tick.ply, tickInterval(final.rules)), tone: 'info' }, hold: TIMING.stir });
 
   for (const sm of record.tick.moves) {
     current = { ...current, [sm.color]: { ...current[sm.color], square: sm.to } };

@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import type { Level } from '../bot/hybrid';
-import type { Color, ImmortalChessState } from '../engine/types';
+import { DEFAULT_RULES, type Color, type GameRules, type ImmortalChessState } from '../engine/types';
 import { SnailIcon } from './SnailIcon';
 import type { Mode } from './useSnailGame';
 
@@ -22,15 +22,28 @@ export function Sheet({ label, onClose, children }: { label: string; onClose: ()
   );
 }
 
-export const RULES: [string, string][] = [
-  ['Snails hunt the kings.', 'Each snail takes the most direct path to the opposite king.'],
-  ['Every three moves, they step.', 'Each snail moves one square closer.'],
-  ['Snails are unstoppable.', 'They capture anything on the square they land on. If a snail captures a king, game over. If both kings fall at once, it’s a draw.'],
-  ['Snails are walls.', 'Nothing can land on or pass through a snail. Knights can still jump over.'],
-  ['Everything else is chess.', 'Checkmate still wins.'],
-];
+const COUNT = { 2: 'two', 3: 'three', 4: 'four' } as const;
 
-export function RulesSheet({ onClose }: { onClose: () => void }) {
+/** How to play, worded for the rules in force (online games can change three of them). */
+export function rulesText(rules: GameRules = DEFAULT_RULES): [string, string][] {
+  const straight = rules.movement === 'straight';
+  return [
+    ['Snails hunt the kings.', `Each snail takes the most direct path to the opposite king${straight ? ', moving like a rook: no diagonal steps' : ''}.`],
+    [`Every ${COUNT[rules.movesPerTick]} moves, they step.`, 'Each snail moves one square closer.'],
+    rules.strength === 'weak'
+      ? ['Snails only crush kings.', 'Other pieces are in their way: a snail goes around them by the next shortest path. If a snail reaches a king, game over. If both kings fall at once, it’s a draw.']
+      : ['Snails are unstoppable.', 'They capture anything on the square they land on. If a snail captures a king, game over. If both kings fall at once, it’s a draw.'],
+    ['Snails are walls.', 'Nothing can land on or pass through a snail. Knights can still jump over.'],
+    ['Everything else is chess.', 'Checkmate still wins.'],
+  ];
+}
+
+/** One line for the room header, e.g. "Snails every 3 moves · diagonal · unstoppable". */
+export function rulesSummary(rules: GameRules): string {
+  return `Snails every ${rules.movesPerTick} moves · ${rules.movement === 'straight' ? 'no diagonals' : 'diagonal'} · ${rules.strength === 'weak' ? 'weak' : 'unstoppable'}`;
+}
+
+export function RulesSheet({ rules, onClose }: { rules?: GameRules; onClose: () => void }) {
   return (
     <Sheet label="How to play" onClose={onClose}>
       <header className="sheet-head">
@@ -41,7 +54,7 @@ export function RulesSheet({ onClose }: { onClose: () => void }) {
         </div>
       </header>
       <ol className="rules">
-        {RULES.map(([h, p]) => (
+        {rulesText(rules).map(([h, p]) => (
           <li key={h}>
             <b>{h}</b> {p}
           </li>

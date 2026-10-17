@@ -43,7 +43,7 @@ describe('nextSnailStep', () => {
 
 describe('tick timing', () => {
   it('ticks every 6 plies', () => {
-    expect([1, 2, 3, 4, 5].map(isTickPly)).toEqual([false, false, false, false, false]);
+    expect([1, 2, 3, 4, 5].map((n) => isTickPly(n))).toEqual([false, false, false, false, false]);
     expect(isTickPly(6)).toBe(true);
     expect(isTickPly(12)).toBe(true);
     expect(isTickPly(0)).toBe(false);
@@ -51,7 +51,7 @@ describe('tick timing', () => {
     expect(pliesUntilTick(5)).toBe(1);
     expect(pliesUntilTick(6)).toBe(6);
     // Counted in moves: 3 at the start of a cycle, 1 when only Black's move remains.
-    expect([0, 1, 2, 3, 4, 5, 6].map(movesUntilSnails)).toEqual([3, 3, 2, 2, 1, 1, 3]);
+    expect([0, 1, 2, 3, 4, 5, 6].map((n) => movesUntilSnails(n))).toEqual([3, 3, 2, 2, 1, 1, 3]);
   });
 });
 

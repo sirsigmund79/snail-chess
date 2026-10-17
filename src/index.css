@@ -273,3 +273,4 @@ html[data-theme='bubblegum'] .brand span { background: var(--brand); -webkit-bac
   .slimed-band, .slimed-word, .slimed-img, .slimed-caption { animation: none; opacity: 1; transform: none; }
   .slimed-overlay { animation: none; background: rgba(28, 25, 23, 0.35); }
 }
+.room .small { font-size: 13px; margin: 0; max-width: 320px; }
