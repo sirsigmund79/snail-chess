@@ -8,9 +8,10 @@ per variant.
 
 | Path | What it is |
 |---|---|
-| `bot/patches/fairy-stockfish-snail.patch` | The engine: 12 snail variants added to Fairy-Stockfish. Base: `fairy-stockfish/Fairy-Stockfish` `master` at `9f778da`. |
-| `bot/patches/variant-nnue-tools-snail.patch` | The same change for the training-data generator. Base: `fairy-stockfish/variant-nnue-tools` `tools` at `445b53c`. |
-| `bot/patches/variant-nnue-pytorch-snail.patch` | The trainer set up for 7 piece types (chess + snail). Base: `fairy-stockfish/variant-nnue-pytorch` `master` at `b15df38`. |
+| [`sirsigmund79/Fairy-Stockfish`](https://github.com/sirsigmund79/Fairy-Stockfish/tree/snail), branch `snail` | The engine: 12 snail variants added to Fairy-Stockfish, plus `tests/snail/` (rule checks, self-play, matches) and a CI workflow. |
+| [`sirsigmund79/variant-nnue-tools`](https://github.com/sirsigmund79/variant-nnue-tools/tree/snail-tools), branch `snail-tools` | The same change for the training-data generator. |
+| [`sirsigmund79/variant-nnue-pytorch`](https://github.com/sirsigmund79/variant-nnue-pytorch/tree/snail), branch `snail` | The trainer set up for 7 piece types (chess + snail). |
+| `bot/patches/` | The same three changes as patches (a backup; the forks are the source of truth; the engine patch leaves out the binary reference positions). |
 | `scripts/dump-positions.ts` | Plays seeded random games in every variant with *this* repo's rules engine and writes reference positions. |
 | `src/engine/fairy.ts` | Variant names and FEN conversion between the game and the engine. |
 
@@ -52,28 +53,25 @@ The hand-written evaluation has a simple snail-distance term as a starting point
 - **Training data:** `generate_training_data` works for the snail variants. The snails are
   stored in every position, and the trainer's own decoder, configured by the trainer patch,
   reads the boards back exactly as the engine wrote them.
-- **Not done yet:** training networks (needs an NVIDIA GPU, see below), strength testing, and a
-  browser build.
+- **Matches:** `tests/snail/match.py` measures one setup against another (checked: full strength
+  beats `Skill Level 0` 20–0).
+- **Not done yet:** training networks (needs an NVIDIA GPU, see below), and a browser build.
 
-## Setting up the repos
+## The repos
 
-Make three public forks on GitHub (the engine is GPLv3, so the source of anything the game
-serves must be public):
+The three forks above are public (Fairy-Stockfish is GPLv3, so the source of anything the game
+serves has to be). Work on the `snail` / `snail-tools` branches; leave `master` / `tools`
+tracking upstream so you can pull in Fairy-Stockfish updates later.
 
-1. Fork `fairy-stockfish/Fairy-Stockfish`, `fairy-stockfish/variant-nnue-tools` and
-   `fairy-stockfish/variant-nnue-pytorch` into your account.
-2. In each fork, create a branch (`snail` in the engine and trainer, `snail-tools` in the tools
-   repo) from the base commit above and apply the patch:
+Every push to the engine's `snail` branch runs `.github/workflows/snail.yml`: it builds the
+engine and pyffish, checks the committed reference positions
+(`tests/snail/positions.jsonl.gz`, 9,734 positions from this repo's rules engine) and plays a
+self-play game in every variant. If you change the game's rules, regenerate that file
+(`npx tsx scripts/dump-positions.ts --games 16 --seed 7 --out positions.jsonl`, then gzip) and
+update the engine until CI is green.
 
-   ```bash
-   git clone https://github.com/<you>/Fairy-Stockfish && cd Fairy-Stockfish
-   git checkout -b snail 9f778da
-   git am /path/to/snail-chess/bot/patches/fairy-stockfish-snail.patch
-   git push -u origin snail
-   ```
-
-   (Same for the other two. If a base branch has moved on and `git am` fails, use
-   `git am -3` and resolve.)
+Changes to the engine go into the tools repo too (it's the same engine plus the generator):
+copy or cherry-pick them onto `snail-tools`.
 
 ## Step 4 on Windows
 
@@ -112,8 +110,8 @@ Windows is many times slower.
 
 ```bash
 mkdir -p ~/snail && cd ~/snail
-git clone -b snail https://github.com/<you>/Fairy-Stockfish
-git clone -b snail-tools https://github.com/<you>/variant-nnue-tools
+git clone -b snail https://github.com/sirsigmund79/Fairy-Stockfish
+git clone -b snail-tools https://github.com/sirsigmund79/variant-nnue-tools
 git clone https://github.com/sirsigmund79/snail-chess && (cd snail-chess && npm install)
 
 # i5-8300H supports BMI2: the fastest build for it
@@ -173,7 +171,7 @@ Intel graphics, so do this step on a rented or free cloud GPU:
 On the GPU machine:
 
 ```bash
-git clone -b snail https://github.com/<you>/variant-nnue-pytorch && cd variant-nnue-pytorch
+git clone -b snail https://github.com/sirsigmund79/variant-nnue-pytorch && cd variant-nnue-pytorch
 python3 -m venv env && . env/bin/activate && pip install -r requirements.txt
 sh compile_data_loader.bat
 # upload snail-3-d-u-gen0.bin and snail-3-d-u-val.bin, then:
@@ -189,11 +187,23 @@ Download only the `.nnue` (a few MB), never the checkpoints.
 
 ```bash
 cd ~/snail/Fairy-Stockfish/src
-printf "uci\nsetoption name UCI_Variant value snail-3-d-u\nsetoption name EvalFile value /home/<you>/snail/snail-3-d-u.nnue\nposition startpos\ngo depth 12\nquit\n" | ./stockfish
+printf "uci\nsetoption name UCI_Variant value snail-3-d-u\nsetoption name EvalFile value $HOME/snail/snail-3-d-u.nnue\nposition startpos\ngo depth 12\nquit\n" | ./stockfish
 ```
 
 It should report `NNUE evaluation using ...` and no errors. Then play it against the previous
-best in many short games (more on matches below), and keep it only if it wins.
+best (for the first network, against the hand-written evaluation):
+
+```bash
+cd ~/snail/Fairy-Stockfish
+~/snail/venv/bin/python tests/snail/match.py --variant snail-3-d-u --games 400 --movetime 50 \
+  --a src/stockfish --a-opt EvalFile=$HOME/snail/snail-3-d-u.nnue \
+  --b src/stockfish --b-opt "Use NNUE=false"
+```
+
+It plays each random opening twice with colours swapped and prints wins/draws/losses for A and
+the Elo difference with a 95% interval. Keep the new network only if the whole interval is
+above zero; if it straddles zero, play more games. 400 games at 50 ms a move takes about an
+hour on your laptop.
 
 ### 7. Next generations and variants
 
