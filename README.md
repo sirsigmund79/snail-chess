@@ -59,9 +59,11 @@ by hand.
 for their friend (`GameRules` in `src/engine/types.ts`, kept across rematches): snails step every
 **2, 3 or 4** full moves; **no diagonals** (rook steps along the longer axis, rank on a tie;
 distance is Manhattan); and **weak** snails, which only crush the king they hunt. Any other piece
-blocks a weak snail, so it takes the first step of the shortest path around it (BFS over open
-squares), or an open square that still gets closer if it's walled in, or waits. Bot and same-phone
-games always use the defaults.
+blocks a weak snail, so it takes the first step of the shortest route around it (Dijkstra:
+open squares cost 1, occupied ones 64, so if the king is boxed in the route crosses as few pieces
+as possible). In both variants a snail always steps somewhere if any square it can move to is
+free, even sideways or back; it only waits when all of them are taken. Bot and same-phone games
+always use the defaults.
 
 ## Architecture
 
