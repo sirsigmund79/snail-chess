@@ -1,0 +1,55 @@
+From 2b282625497db57dd64bca9c14e859346ad1f46e Mon Sep 17 00:00:00 2001
+From: Parker Nolan <parker.k.nolan@gmail.com>
+Date: Sat, 17 Oct 2026 17:40:45 +0000
+Subject: [PATCH] Configure the trainer for Immortal Snail Chess
+
+One extra piece type (the snail, between the queen and the king in the
+engine's piece order, value 0) and two more pieces on the board.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014fb7yruAJNCSruyqMn1GUe
+---
+ variant.h  | 7 +++++--
+ variant.py | 3 ++-
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/variant.h b/variant.h
+index a826fa5..421f109 100644
+--- a/variant.h
++++ b/variant.h
+@@ -1,7 +1,10 @@
++// Immortal snail chess (snail-* variants in the Fairy-Stockfish fork): standard chess plus one
++// snail per side, an extra piece type that sits between the queen and the king in the
++// engine's piece order.
+ #define FILES 8
+ #define RANKS 8
+-#define PIECE_TYPES 6
+-#define PIECE_COUNT 32
++#define PIECE_TYPES 7
++#define PIECE_COUNT 34
+ #define POCKETS false
+ #define KING_SQUARES FILES * RANKS
+ #define DATA_SIZE 512
+diff --git a/variant.py b/variant.py
+index 7100026..7411d18 100644
+--- a/variant.py
++++ b/variant.py
+@@ -2,7 +2,7 @@ RANKS = 8
+ FILES = 8
+ SQUARES = RANKS * FILES
+ KING_SQUARES = RANKS * FILES
+-PIECE_TYPES = 6
++PIECE_TYPES = 7  # chess pieces + the snail (immortal snail chess)
+ PIECES = 2 * PIECE_TYPES
+ USE_POCKETS = False
+ POCKETS = 2 * FILES if USE_POCKETS else 0
+@@ -13,4 +13,5 @@ PIECE_VALUES = {
+     3 : 825,
+     4 : 1276,
+     5 : 2538,
++    6 : 0,  # snail: can't be captured, never traded
+ }
+\ No newline at end of file
+-- 
+2.43.0
+

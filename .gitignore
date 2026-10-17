@@ -16,3 +16,8 @@ fonts-local/
 
 # wrangler dev local state
 .wrangler/
+
+# Bot lab: generated reference positions and training data
+positions*.jsonl
+*.bin
+*.nnue
