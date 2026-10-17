@@ -8,7 +8,8 @@
  * Each line: { variant, game, ply, fen, legal, move, after, status } where fen/after are in the
  * engine's FEN (snails as S/s, see src/engine/fairy.ts), legal is the sorted UCI move list,
  * and status describes the position after the move. The last line of each game also carries
- * `moves`, the whole game in UCI, so repetition draws can be replayed.
+ * `start` (the game's starting FEN) and `moves` (the whole game in UCI), so repetition draws can
+ * be replayed.
  *
  * Even-numbered games lean towards king moves and captures, so kings wander into snail paths
  * and games reach crushes and snail wins quickly; odd-numbered games are plain random, so long
@@ -64,6 +65,7 @@ for (const rules of ALL_RULES) {
   for (let game = 0; game < games + extra * EXTRA_STARTS.length; game++) {
     const start = game >= games ? EXTRA_STARTS[Math.floor((game - games) / extra)] : null;
     let s = start ? createGame({ rules, fen: start[0], snails: start[1] }) : createGame({ rules });
+    const startFen = toFairyFen(s);
     const played: string[] = [];
     while (s.gameStatus === 'in_progress' && s.plyCount < maxPlies) {
       const legal = getLegalMoves(s);
@@ -84,7 +86,7 @@ for (const rules of ALL_RULES) {
         move: uci(move),
         after: toFairyFen(next),
         status: status(next),
-        ...(next.gameStatus !== 'in_progress' || next.plyCount >= maxPlies ? { moves: played } : {}),
+        ...(next.gameStatus !== 'in_progress' || next.plyCount >= maxPlies ? { start: startFen, moves: played } : {}),
       };
       out.write(JSON.stringify(line) + '\n');
       s = next;
