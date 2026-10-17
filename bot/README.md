@@ -42,9 +42,11 @@ The hand-written evaluation has a simple snail-distance term as a starting point
 ## Status (verified)
 
 - **Rules:** the engine matches the game's TypeScript engine on legal moves, the position after
-  every move, and the game result for every position checked: tens of thousands across all 12
+  every move, and the game result for all 62,977 positions from 200 games per variant in all 12
   variants (`tests/snail/compare.py`), covering crushes, snail wins, both kings crushed,
-  checkmates, promotions, castling and en passant.
+  checkmates, dead-position draws, promotions, castling and en passant. Like the game, the
+  engine ends dead positions (bare kings, one minor piece, same-coloured bishops) as an
+  immediate draw, with snails left out.
 - **Search:** engine-vs-engine games in all 12 variants with no crashes and no illegal moves
   (`tests/snail/selfplay.py`).
 - **Training data:** `generate_training_data` works for the snail variants. The snails are
