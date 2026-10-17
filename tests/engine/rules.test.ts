@@ -45,9 +45,9 @@ describe('straight movement', () => {
     expect(nextSnailStep('d4', 'd8', null, straight)).toBe('d5');
   });
 
-  it('takes the other axis when the other snail is in the way, else sidesteps instead of waiting', () => {
+  it('takes the other axis when the other snail is in the way, or waits', () => {
     expect(nextSnailStep('a4', 'e8', 'a5', straight)).toBe('b4');
-    expect(nextSnailStep('d4', 'd8', 'd5', straight)).toBe('c4');
+    expect(nextSnailStep('d4', 'd8', 'd5', straight)).toBe('d4');
   });
 
   it('crushes along a rook path in a real tick', () => {
@@ -84,25 +84,6 @@ describe('weak snails', () => {
     const { board } = parseFen('8/8/8/8/8/8/8/k3K3 w - - 0 1');
     const r = applySnailTick(board, snails('b2', 'h5'), weak);
     expect(r.crushedKing).toBe('b');
-  });
-
-  it('keep moving when the king is boxed in by its own pieces', () => {
-    // Straight + weak from the start-like position: both kings are walled in (d, f and the e-pawn),
-    // and each snail's way forward is a snail or a pawn. They still step: White's to a3, Black's
-    // to a6, heading for the open centre.
-    const { board } = parseFen('rnbqkbnr/p1p1pppp/8/1p1p4/1PP5/8/P2PPPPP/RNBQKBNR w KQkq - 0 5');
-    const r = applySnailTick(board, snails('a4', 'a5'), rules({ strength: 'weak', movement: 'straight' }));
-    expect(r.moves.map((m) => [m.from, m.to])).toEqual([
-      ['a4', 'a3'],
-      ['a5', 'a6'],
-    ]);
-    expect(r.moves.some((m) => m.crushed)).toBe(false);
-  });
-
-  it('only wait when every square they could step to is taken', () => {
-    const { board } = parseFen('4k3/8/1P6/1P6/PP6/8/8/4K3 w - - 0 1');
-    // a5 boxed in by pawns on a4, b4, b5, b6 and the other snail on a6.
-    expect(nextSnailStep('a5', 'e8', 'a6', weak, board)).toBe('a5');
   });
 
   it('combine with straight movement', () => {

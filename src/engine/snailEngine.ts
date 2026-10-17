@@ -61,34 +61,19 @@ function primaryStep(from: Square, target: Square, movement: GameRules['movement
   return Math.abs(tf - sf) > Math.abs(tr - sr) ? coordsToSq(sf + df, sr) : coordsToSq(sf, sr + dr);
 }
 
-/** What entering a square that holds a piece costs a weak snail's route: worse than any open detour. */
-const BLOCKED_COST = 64;
-
-/**
- * Route length from each square to `target` (Dijkstra over at most 64 squares). Open squares cost
- * 1 to enter, squares holding a piece BLOCKED_COST, and `wall` squares can't be entered at all. So
- * a route around pieces wins when there is one, and when the king is boxed in the snail still
- * heads for the gap with the fewest pieces in it.
- */
-function routeLengths(
-  target: Square,
-  cost: (sq: Square) => number,
-  movement: GameRules['movement'],
-): Map<Square, number> {
+/** Steps from each square to `target` through squares `open` allows (Infinity when cut off). */
+function distancesTo(target: Square, open: (sq: Square) => boolean, movement: GameRules['movement']): Map<Square, number> {
   const dist = new Map<Square, number>([[target, 0]]);
-  const done = new Set<Square>();
-  for (;;) {
-    let sq: Square | null = null;
-    for (const [s, d] of dist) if (!done.has(s) && (sq === null || d < dist.get(sq)!)) sq = s;
-    if (sq === null) return dist;
-    done.add(sq);
-    for (const n of neighbours(sq, movement)) {
-      // Routes run from the snail to the target, so a step from n into sq pays for sq.
-      const step = sq === target ? 1 : cost(sq);
-      const d = dist.get(sq)! + step;
-      if (step !== Infinity && cost(n) !== Infinity && d < (dist.get(n) ?? Infinity)) dist.set(n, d);
+  const queue: Square[] = [target];
+  for (let i = 0; i < queue.length; i++) {
+    const d = dist.get(queue[i])! + 1;
+    for (const n of neighbours(queue[i], movement)) {
+      if (dist.has(n) || !open(n)) continue;
+      dist.set(n, d);
+      queue.push(n);
     }
   }
+  return dist;
 }
 
 /**
@@ -97,11 +82,9 @@ function routeLengths(
  * shortens the distance, preferring the one closest (Euclidean) to the target, then a fixed scan
  * order. If nothing works the snail stays put.
  *
- * The variants never wait while a square is free. Weak snails (pass `board`) can't enter a
- * square holding anything but the target king, so they take the first step of the shortest route
- * around whatever is in the way; if the king is boxed in, the route goes through as few pieces as
- * possible and the snail still moves along it. Straight-moving snails that can't get closer step
- * sideways (or back) to the nearest free square.
+ * Weak snails (pass `board`) can't enter a square holding anything but the target king, so they
+ * take the first step of the shortest path around whatever is in the way. If they are walled off
+ * completely they still step to an open square that gets closer, or wait.
  */
 export function nextSnailStep(
   from: Square,
@@ -125,19 +108,15 @@ export function nextSnailStep(
   const options = neighbours(from, movement).sort((a, b) => (a === primary ? -1 : b === primary ? 1 : d2(a) - d2(b)));
 
   if (weak) {
-    const dist = routeLengths(target, (sq) => (sq === blocked ? Infinity : open(sq) ? 1 : BLOCKED_COST), movement);
+    const dist = distancesTo(target, open, movement);
     let best: Square | null = null;
     for (const sq of options) {
-      if (!open(sq)) continue;
-      if (best === null || (dist.get(sq) ?? Infinity) < (dist.get(best) ?? Infinity)) best = sq;
+      if (open(sq) && dist.has(sq) && (best === null || dist.get(sq)! < dist.get(best)!)) best = sq;
     }
-    return best ?? from;
+    if (best) return best;
   }
   const d = snailDistance(from, target, movement);
-  const closer = options.find((sq) => open(sq) && snailDistance(sq, target, movement) < d);
-  if (closer) return closer;
-  // The standard rules wait here; the straight variant takes the nearest free square instead.
-  return movement === 'straight' ? (options.find(open) ?? from) : from;
+  return options.find((sq) => open(sq) && snailDistance(sq, target, movement) < d) ?? from;
 }
 
 /** Would Black's snail land on the White king with its step this tick? */
