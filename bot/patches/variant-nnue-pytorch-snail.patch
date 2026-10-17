@@ -1,7 +1,7 @@
 From 2b282625497db57dd64bca9c14e859346ad1f46e Mon Sep 17 00:00:00 2001
 From: Parker Nolan <parker.k.nolan@gmail.com>
 Date: Sat, 17 Oct 2026 17:40:45 +0000
-Subject: [PATCH] Configure the trainer for Immortal Snail Chess
+Subject: [PATCH 1/2] Configure the trainer for Immortal Snail Chess
 
 One extra piece type (the snail, between the queen and the king in the
 engine's piece order, value 0) and two more pieces on the board.
@@ -50,6 +50,271 @@ index 7100026..7411d18 100644
 +    6 : 0,  # snail: can't be captured, never traded
  }
 \ No newline at end of file
+-- 
+2.43.0
+
+
+From 7434752f0525ebb831ae9b2acf9a73a8daf0cabc Mon Sep 17 00:00:00 2001
+From: Parker Nolan <parker.k.nolan@gmail.com>
+Date: Sat, 17 Oct 2026 21:46:16 +0000
+Subject: [PATCH 2/2] Add a Colab notebook for snail chess, and
+ --last-checkpoint-only
+
+snail_colab.ipynb: pick a variant and generation, then Run all. It
+downloads the data release made by the snail-data workflow in
+variant-nnue-tools, trains with checkpoints on Google Drive (resuming
+after disconnects), exports the .nnue, builds the snail engine, checks its
+rules, and plays a match against the hand-written evaluation or an
+earlier network.
+
+--last-checkpoint-only keeps just last.ckpt so long runs don't fill Drive.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014fb7yruAJNCSruyqMn1GUe
+---
+ snail_colab.ipynb | 208 ++++++++++++++++++++++++++++++++++++++++++++++
+ train.py          |   5 +-
+ 2 files changed, 212 insertions(+), 1 deletion(-)
+ create mode 100644 snail_colab.ipynb
+
+diff --git a/snail_colab.ipynb b/snail_colab.ipynb
+new file mode 100644
+index 0000000..c3fecc0
+--- /dev/null
++++ b/snail_colab.ipynb
+@@ -0,0 +1,208 @@
++{
++ "cells": [
++  {
++   "cell_type": "markdown",
++   "metadata": {},
++   "source": [
++    "# Train a snail chess network \ud83d\udc0c\n",
++    "\n",
++    "Trains an NNUE network for one [Immortal Snail Chess](https://chess.stbinf.com/) variant and tests it.\n",
++    "\n",
++    "1. **Runtime \u2192 Change runtime type \u2192 a GPU** (T4 works; L4/A100 are faster).\n",
++    "2. Set the options in the first cell, then **Runtime \u2192 Run all**.\n",
++    "\n",
++    "Training data comes from the **Snail training data** workflow in\n",
++    "[sirsigmund79/variant-nnue-tools](https://github.com/sirsigmund79/variant-nnue-tools/actions/workflows/snail-data.yml)\n",
++    "(run it first for the variant and generation you want). Everything you keep (checkpoints, the network, match\n",
++    "results) goes to Google Drive under `MyDrive/snail-bots/`, so if Colab disconnects just **Run all** again:\n",
++    "training picks up from the last checkpoint."
++   ]
++  },
++  {
++   "cell_type": "code",
++   "metadata": {},
++   "execution_count": null,
++   "outputs": [],
++   "source": [
++    "#@title Settings\n",
++    "VARIANT = \"snail-3-d-u\"  #@param [\"snail-3-d-u\", \"snail-3-d-w\", \"snail-3-s-u\", \"snail-3-s-w\", \"snail-2-d-u\", \"snail-2-d-w\", \"snail-2-s-u\", \"snail-2-s-w\", \"snail-4-d-u\", \"snail-4-d-w\", \"snail-4-s-u\", \"snail-4-s-w\"]\n",
++    "GENERATION = 0  #@param {type:\"integer\"}\n",
++    "#@markdown Leave empty to use the newest data release for this variant and generation, or give an exact tag.\n",
++    "DATA_RELEASE = \"\"  #@param {type:\"string\"}\n",
++    "#@markdown Training length: an epoch is EPOCH_SIZE positions (the data is reused cyclically).\n",
++    "EPOCHS = 100  #@param {type:\"integer\"}\n",
++    "EPOCH_SIZE = 10000000  #@param {type:\"integer\"}\n",
++    "BATCH_SIZE = 16384  #@param {type:\"integer\"}\n",
++    "#@markdown Optional: start from an earlier network's .pt on Drive (fine-tuning another variant or generation).\n",
++    "INIT_FROM_PT = \"\"  #@param {type:\"string\"}\n",
++    "#@markdown The match: games against OPPONENT_NET (a .nnue path on Drive), or the hand-written evaluation if empty.\n",
++    "MATCH_GAMES = 200  #@param {type:\"integer\"}\n",
++    "OPPONENT_NET = \"\"  #@param {type:\"string\"}"
++   ]
++  },
++  {
++   "cell_type": "code",
++   "metadata": {},
++   "execution_count": null,
++   "outputs": [],
++   "source": [
++    "#@title Google Drive and GPU\n",
++    "from google.colab import drive\n",
++    "drive.mount('/content/drive')\n",
++    "import os\n",
++    "WORK = f\"/content/drive/MyDrive/snail-bots/{VARIANT}-gen{GENERATION}\"\n",
++    "os.makedirs(WORK, exist_ok=True)\n",
++    "print(\"Saving to\", WORK)\n",
++    "!nvidia-smi -L || echo \"No GPU: Runtime -> Change runtime type -> GPU\""
++   ]
++  },
++  {
++   "cell_type": "code",
++   "metadata": {},
++   "execution_count": null,
++   "outputs": [],
++   "source": [
++    "#@title Install the trainer\n",
++    "%cd /content\n",
++    "!test -d variant-nnue-pytorch || git clone -q -b snail https://github.com/sirsigmund79/variant-nnue-pytorch\n",
++    "%cd /content/variant-nnue-pytorch\n",
++    "!git pull -q\n",
++    "# Colab's own PyTorch (CUDA 12) is used as is; the trainer needs Lightning 1.9.x, which needs an older setuptools.\n",
++    "!pip install -q \"pytorch-lightning==1.9.5\" \"setuptools<70\" cupy-cuda12x chess\n",
++    "!sh compile_data_loader.bat > /dev/null 2>&1; ls *.so"
++   ]
++  },
++  {
++   "cell_type": "code",
++   "metadata": {},
++   "execution_count": null,
++   "outputs": [],
++   "source": [
++    "#@title Download the training data\n",
++    "import json, urllib.request\n",
++    "releases = json.load(urllib.request.urlopen(\"https://api.github.com/repos/sirsigmund79/variant-nnue-tools/releases?per_page=100\"))\n",
++    "prefix = f\"data-{VARIANT}-gen{GENERATION}-\"\n",
++    "matches = [r for r in releases if (r[\"tag_name\"] == DATA_RELEASE if DATA_RELEASE else r[\"tag_name\"].startswith(prefix))]\n",
++    "if not matches:\n",
++    "    raise RuntimeError(f\"No data release for {VARIANT} generation {GENERATION} yet. Run the 'Snail training data' workflow: \"\n",
++    "                     \"https://github.com/sirsigmund79/variant-nnue-tools/actions/workflows/snail-data.yml\")\n",
++    "release = matches[0]  # newest first\n",
++    "print(\"Using\", release[\"tag_name\"], \"-\", release[\"body\"].splitlines()[0])\n",
++    "os.makedirs(\"/content/data\", exist_ok=True)\n",
++    "for asset in release[\"assets\"]:\n",
++    "    path = f\"/content/data/{asset['name']}\"\n",
++    "    if not os.path.exists(path) or os.path.getsize(path) != asset[\"size\"]:\n",
++    "        print(\"Downloading\", asset[\"name\"], f\"({asset['size'] / 1e6:.0f} MB)\")\n",
++    "        urllib.request.urlretrieve(asset[\"browser_download_url\"], path)\n",
++    "TRAIN = f\"/content/data/{VARIANT}-gen{GENERATION}.bin\"\n",
++    "VAL = f\"/content/data/{VARIANT}-gen{GENERATION}-val.bin\"\n",
++    "print(TRAIN, os.path.getsize(TRAIN) // 72, \"positions\")\n",
++    "print(VAL, os.path.getsize(VAL) // 72, \"positions\")"
++   ]
++  },
++  {
++   "cell_type": "code",
++   "metadata": {},
++   "execution_count": null,
++   "outputs": [],
++   "source": [
++    "#@title Train (resumes from the last checkpoint on Drive)\n",
++    "import glob\n",
++    "%cd /content/variant-nnue-pytorch\n",
++    "def last_checkpoint():\n",
++    "    ckpts = glob.glob(f\"{WORK}/lightning_logs/version_*/checkpoints/last.ckpt\")\n",
++    "    return max(ckpts, key=os.path.getmtime) if ckpts else None\n",
++    "resume = last_checkpoint()\n",
++    "extra = f\"--resume_from_checkpoint {resume}\" if resume else (f\"--resume-from-model {INIT_FROM_PT}\" if INIT_FROM_PT else \"\")\n",
++    "print(\"Resuming from\", resume) if resume else print(\"Starting fresh\" + (f\" from {INIT_FROM_PT}\" if INIT_FROM_PT else \"\"))\n",
++    "!python train.py {TRAIN} {VAL} --gpus 1 --threads 4 --num-workers 4 --batch-size {BATCH_SIZE} \\\n",
++    "    --random-fen-skipping 3 --features=HalfKAv2^ --max_epochs {EPOCHS} --epoch-size {EPOCH_SIZE} \\\n",
++    "    --default_root_dir {WORK} --last-checkpoint-only {extra}"
++   ]
++  },
++  {
++   "cell_type": "code",
++   "metadata": {},
++   "execution_count": null,
++   "outputs": [],
++   "source": [
++    "#@title Export the network\n",
++    "# The engine only loads a network whose file name starts with the variant name.\n",
++    "NET = f\"{WORK}/{VARIANT}-gen{GENERATION}.nnue\"\n",
++    "ckpt = last_checkpoint()\n",
++    "!python serialize.py {ckpt} {NET}\n",
++    "!python serialize.py {ckpt} {WORK}/{VARIANT}-gen{GENERATION}.pt\n",
++    "print(\"Network:\", NET, f\"({os.path.getsize(NET) / 1e6:.0f} MB)\")"
++   ]
++  },
++  {
++   "cell_type": "code",
++   "metadata": {},
++   "execution_count": null,
++   "outputs": [],
++   "source": [
++    "#@title Build the engine and check its rules\n",
++    "%cd /content\n",
++    "!test -d Fairy-Stockfish || git clone -q -b snail https://github.com/sirsigmund79/Fairy-Stockfish\n",
++    "%cd /content/Fairy-Stockfish\n",
++    "!git pull -q\n",
++    "!cd src && make -j$(nproc) ARCH=x86-64-avx2 build > /dev/null 2>&1 && ls -la stockfish\n",
++    "!python setup.py build_ext --inplace > /dev/null 2>&1\n",
++    "!python tests/snail/compare.py tests/snail/positions.jsonl.gz | tail -1"
++   ]
++  },
++  {
++   "cell_type": "code",
++   "metadata": {},
++   "execution_count": null,
++   "outputs": [],
++   "source": [
++    "#@title Match: the new network against the opponent\n",
++    "opponent = f\"--b-opt EvalFile={OPPONENT_NET}\" if OPPONENT_NET else '--b-opt \"Use NNUE=false\"'\n",
++    "print(\"A = new network, B =\", OPPONENT_NET or \"hand-written evaluation\")\n",
++    "!python tests/snail/match.py --variant {VARIANT} --games {MATCH_GAMES} --movetime 50 \\\n",
++    "    --a src/stockfish --a-opt EvalFile={NET} --b src/stockfish {opponent} | tee {WORK}/match.txt"
++   ]
++  },
++  {
++   "cell_type": "code",
++   "metadata": {},
++   "execution_count": null,
++   "outputs": [],
++   "source": [
++    "#@title Download the network\n",
++    "from google.colab import files\n",
++    "files.download(NET)"
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "metadata": {},
++   "source": [
++    "## Next\n",
++    "\n",
++    "- **Keep it** only if the match's whole Elo interval is above zero (more games narrow it).\n",
++    "- **Next generation:** upload the `.nnue` to a release in your `variant-nnue-tools` fork (Releases \u2192 Draft a new release \u2192 attach the file),\n",
++    "  copy its download link, and run the **Snail training data** workflow with `generation` 1 and `net_url` set to that link.\n",
++    "  Then set `GENERATION = 1`, `OPPONENT_NET` to this network on Drive, and run this notebook again.\n",
++    "- **Other variants:** run the workflow for that variant, set `VARIANT`, and `INIT_FROM_PT` to the standard network's `.pt` to start from it."
++   ]
++  }
++ ],
++ "metadata": {
++  "accelerator": "GPU",
++  "colab": {
++   "provenance": [],
++   "gpuType": "T4"
++  },
++  "kernelspec": {
++   "display_name": "Python 3",
++   "name": "python3"
++  },
++  "language_info": {
++   "name": "python"
++  }
++ },
++ "nbformat": 4,
++ "nbformat_minor": 0
++}
+\ No newline at end of file
+diff --git a/train.py b/train.py
+index 7981f6d..904b69b 100644
+--- a/train.py
++++ b/train.py
+@@ -37,6 +37,7 @@ def main():
+   parser.add_argument("--resume-from-model", dest='resume_from_model', help="Initializes training using the weights from the given .pt model")
+   parser.add_argument("--epoch-size", type=int, default=20000000, dest='epoch_size', help="Number of positions per epoch.")
+   parser.add_argument("--validation-size", type=int, default=1000000, dest='validation_size', help="Number of positions per validation step.")
++  parser.add_argument("--last-checkpoint-only", action='store_true', dest='last_checkpoint_only', help="Keep only last.ckpt instead of a checkpoint per epoch.")
+   features.add_argparse_args(parser)
+   args = parser.parse_args()
+ 
+@@ -84,7 +85,9 @@ def main():
+   print('Using log dir {}'.format(logdir), flush=True)
+ 
+   tb_logger = pl_loggers.TensorBoardLogger(logdir)
+-  checkpoint_callback = pl.callbacks.ModelCheckpoint(save_last=True, every_n_epochs=1, save_top_k=-1)
++  # --last-checkpoint-only keeps just last.ckpt (each checkpoint holds optimizer state too, so
++  # keeping one per epoch fills a Colab/Drive disk quickly)
++  checkpoint_callback = pl.callbacks.ModelCheckpoint(save_last=True, every_n_epochs=1, save_top_k=0 if args.last_checkpoint_only else -1)
+   trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint_callback], logger=tb_logger)
+ 
+   main_device = trainer.strategy.root_device if trainer.strategy.root_device.index is None else 'cuda:' + str(trainer.strategy.root_device.index)
 -- 
 2.43.0
 

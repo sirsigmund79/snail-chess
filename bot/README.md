@@ -11,7 +11,7 @@ per variant.
 | [`sirsigmund79/Fairy-Stockfish`](https://github.com/sirsigmund79/Fairy-Stockfish/tree/snail), branch `snail` | The engine: 12 snail variants added to Fairy-Stockfish, plus `tests/snail/` (rule checks, self-play, matches) and a CI workflow. |
 | [`sirsigmund79/variant-nnue-tools`](https://github.com/sirsigmund79/variant-nnue-tools/tree/snail-tools), branch `snail-tools` | The same change for the training-data generator. |
 | [`sirsigmund79/variant-nnue-pytorch`](https://github.com/sirsigmund79/variant-nnue-pytorch/tree/snail), branch `snail` | The trainer set up for 7 piece types (chess + snail). |
-| `bot/patches/` | The same three changes as patches (a backup; the forks are the source of truth; the engine patch leaves out the binary reference positions). |
+| `bot/patches/` | The same three changes as patches, plus the data workflow (a backup; the forks are the source of truth; the engine patch leaves out the binary reference positions). |
 | `scripts/dump-positions.ts` | Plays seeded random games in every variant with *this* repo's rules engine and writes reference positions. |
 | `src/engine/fairy.ts` | Variant names and FEN conversion between the game and the engine. |
 
@@ -55,7 +55,10 @@ The hand-written evaluation has a simple snail-distance term as a starting point
   reads the boards back exactly as the engine wrote them.
 - **Matches:** `tests/snail/match.py` measures one setup against another (checked: full strength
   beats `Skill Level 0` 20–0).
-- **Not done yet:** training networks (needs an NVIDIA GPU, see below), and a browser build.
+- **Pipeline:** an untrained network exported by the trainer fork loads and searches in the
+  engine fork, and the trainer's data loader reads snail training data correctly (checked on
+  CPU). Training itself needs a GPU (Colab).
+- **Not done yet:** a trained network, and a browser build.
 
 ## The repos
 
@@ -73,153 +76,64 @@ update the engine until CI is green.
 Changes to the engine go into the tools repo too (it's the same engine plus the generator):
 copy or cherry-pick them onto `snail-tools`.
 
-## Step 4 on Windows
+## Training: GitHub Actions for data, Colab for the GPU
 
-Use WSL2 (a real Linux inside Windows). The engine, generator and trainer all build there
-unchanged, and it's much faster than building natively.
+No local setup needed. Two free/paid cloud services do the heavy lifting:
 
-### 1. Install WSL2 and tools (once)
+### 1. Generate training data (GitHub Actions, about an hour)
 
-In PowerShell as administrator:
+Open [Actions → Snail training data](https://github.com/sirsigmund79/variant-nnue-tools/actions/workflows/snail-data.yml)
+in the tools fork → **Run workflow**. Pick the variant; the defaults (10 million positions,
+depth 6, generation 0, no network) are right for a first network. It builds the `snail-tools`
+branch, generates in 8 parallel shards plus a 500k-position validation shard (about 50 minutes on
+GitHub's 4-core runners), and publishes both files as a release named
+`data-<variant>-gen<N>-run<number>`. Public repos don't pay for Actions minutes. Each shard can
+run up to 6 hours, so up to about 60 million positions per run.
 
-```powershell
-wsl --install -d Ubuntu
-```
+### 2. Train and test (Colab)
 
-Reboot, open "Ubuntu" from the Start menu, and create a user. WSL gets half your RAM by
-default (about 4 GB on your laptop), which is tight. Create `C:\Users\<you>\.wslconfig`:
+Open the notebook [`snail_colab.ipynb`](https://colab.research.google.com/github/sirsigmund79/variant-nnue-pytorch/blob/snail/snail_colab.ipynb)
+from the trainer fork in Colab → Runtime → Change runtime type → a GPU → set the variant and
+generation in the first cell → **Run all**. It:
 
-```ini
-[wsl2]
-memory=6GB
-processors=8
-```
+- downloads the newest data release for that variant and generation,
+- trains with checkpoints on Google Drive (`MyDrive/snail-bots/<variant>-gen<N>/`); if Colab
+  disconnects, Run all again and it resumes from the last checkpoint,
+- exports `<variant>-gen<N>.nnue` and `.pt` to the same folder,
+- builds the snail engine, checks its rules, and plays a match: the new network against the
+  hand-written evaluation (or `OPPONENT_NET`), with the Elo difference and a 95% interval.
 
-then `wsl --shutdown` in PowerShell and reopen Ubuntu. Inside Ubuntu:
+The engine only loads a network whose **file name starts with the variant name**
+(`snail-3-d-u…nnue`); the notebook names them that way.
 
-```bash
-sudo apt update
-sudo apt install -y build-essential git cmake python3-venv python3-dev curl
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt install -y nodejs
-```
+### 3. Next generations and other variants
 
-Keep all repos and data in your Linux home (`~/`), not under `/mnt/c`: file access across to
-Windows is many times slower.
+- **Keep a network** only if the match's whole Elo interval is above zero.
+- **Next generation:** upload the `.nnue` to a release in the tools fork (Releases → Draft a new
+  release → attach it), copy the file's download link, run the workflow with `generation` 1 and
+  `net_url` set to it, then run the notebook with `GENERATION = 1` and `OPPONENT_NET` set to the
+  previous network on Drive.
+- **Other variants:** run the workflow for that variant, then the notebook with that `VARIANT`
+  and `INIT_FROM_PT` set to the standard network's `.pt` on Drive (fine-tuning is much cheaper
+  than starting from scratch). Ship it only if it beats the standard network in that variant.
 
-### 2. Build the engine and the generator
+### Network size and the web game
 
-```bash
-mkdir -p ~/snail && cd ~/snail
-git clone -b snail https://github.com/sirsigmund79/Fairy-Stockfish
-git clone -b snail-tools https://github.com/sirsigmund79/variant-nnue-tools
-git clone https://github.com/sirsigmund79/snail-chess && (cd snail-chess && npm install)
+With the trainer's default first layer (512 wide, compiled into the engine) a snail network is
+about 56 MB: fine for training, testing and generating data, but over Cloudflare's 25 MB per
+file and too heavy for phones. The web build will need a narrower first layer in both the
+engine and the trainer; that's decided once we know how much the network helps.
 
-# i5-8300H supports BMI2: the fastest build for it
-(cd Fairy-Stockfish/src && make -j8 ARCH=x86-64-bmi2 build)
-(cd variant-nnue-tools/src && make -j8 ARCH=x86-64-bmi2 build)
-```
+### Running things locally instead (optional)
 
-### 3. Check the rules match the game (every time either side changes)
+Everything also runs on any Linux machine (or WSL2 on Windows): build `src/` with
+`make -j ARCH=x86-64-avx2 build`, build pyffish with `python3 setup.py build_ext --inplace`, and
+run the same commands the workflow and notebook run. Checkpoints land in
+`<default_root_dir>/lightning_logs/version_N/checkpoints/last.ckpt`.
 
-```bash
-cd ~/snail/Fairy-Stockfish
-python3 -m venv ~/snail/venv && ~/snail/venv/bin/pip install setuptools
-~/snail/venv/bin/python setup.py build_ext --inplace        # builds pyffish from your fork
+## Hardware notes
 
-cd ~/snail/snail-chess
-npx tsx scripts/dump-positions.ts --games 100 --out ~/snail/positions.jsonl
-~/snail/venv/bin/python ~/snail/Fairy-Stockfish/tests/snail/compare.py ~/snail/positions.jsonl
-~/snail/venv/bin/python ~/snail/Fairy-Stockfish/tests/snail/selfplay.py ~/snail/Fairy-Stockfish/src/stockfish
-```
-
-`compare.py` must print `all match`. Don't train on an engine that doesn't.
-
-### 4. Generate training data
-
-Generation 0 uses the hand-written evaluation. One variant at a time:
-
-```bash
-mkdir -p ~/snail/data && cd ~/snail/data
-V=snail-3-d-u
-printf "uci
-setoption name UCI_Variant value $V
-setoption name Use NNUE value false
-setoption name Threads value 7
-setoption name Hash value 1024
-isready
-generate_training_data depth 6 count 10000000 random_multi_pv 4 random_multi_pv_diff 100 random_move_count 8 random_move_max_ply 20 write_min_ply 5 eval_limit 10000 set_recommended_uci_options data_format bin output_file_name $V-gen0.bin
-quit
-" | ~/snail/variant-nnue-tools/src/stockfish
-```
-
-Then a smaller validation file the same way (`count 500000`, `output_file_name $V-val.bin`).
-
-Sizes and speed: 72 bytes per position, so 10M positions is about 720 MB. On a comparable
-4-core machine this ran at about 430 positions a second, so 10M takes 6–7 hours and is a good
-overnight run on your laptop (plug it in; it will run hot). To check a file:
-`convert_plain targetfile $V-gen0.bin output_file_name $V-gen0.txt` in the same engine prints
-it as text.
-
-### 5. Train (on a GPU, not your laptop)
-
-The trainer's core layer is custom CUDA code, so it only runs on NVIDIA GPUs. Your laptop has
-Intel graphics, so do this step on a rented or free cloud GPU:
-
-- **Google Colab (free T4, session limits):** fine for first networks on 10M positions.
-- **A rented GPU by the hour** (RunPod, Vast.ai, Lambda and similar): for bigger runs.
-
-On the GPU machine:
-
-```bash
-git clone -b snail https://github.com/sirsigmund79/variant-nnue-pytorch && cd variant-nnue-pytorch
-python3 -m venv env && . env/bin/activate && pip install -r requirements.txt
-sh compile_data_loader.bat
-# upload snail-3-d-u-gen0.bin and snail-3-d-u-val.bin, then:
-python train.py snail-3-d-u-gen0.bin snail-3-d-u-val.bin --gpus 1 --threads 4 --num-workers 4 \
-  --batch-size 16384 --random-fen-skipping 3 --features=HalfKAv2^ --max_epochs 400
-# checkpoints land under logs/ (the newest version_N folder)
-python serialize.py logs/default/version_0/checkpoints/last.ckpt snail-3-d-u.nnue
-```
-
-Download only the `.nnue` (a few MB), never the checkpoints.
-
-### 6. Test the network
-
-```bash
-cd ~/snail/Fairy-Stockfish/src
-printf "uci\nsetoption name UCI_Variant value snail-3-d-u\nsetoption name EvalFile value $HOME/snail/snail-3-d-u.nnue\nposition startpos\ngo depth 12\nquit\n" | ./stockfish
-```
-
-It should report `NNUE evaluation using ...` and no errors. Then play it against the previous
-best (for the first network, against the hand-written evaluation):
-
-```bash
-cd ~/snail/Fairy-Stockfish
-~/snail/venv/bin/python tests/snail/match.py --variant snail-3-d-u --games 400 --movetime 50 \
-  --a src/stockfish --a-opt EvalFile=$HOME/snail/snail-3-d-u.nnue \
-  --b src/stockfish --b-opt "Use NNUE=false"
-```
-
-It plays each random opening twice with colours swapped and prints wins/draws/losses for A and
-the Elo difference with a 95% interval. Keep the new network only if the whole interval is
-above zero; if it straddles zero, play more games. 400 games at 50 ms a move takes about an
-hour on your laptop.
-
-### 7. Next generations and variants
-
-- Generate new data *with* the new network (`setoption name EvalFile ...`, and leave
-  `Use NNUE` on), train again, and test against the last network.
-- For other variants, start from the standard network with a smaller data set from that
-  variant: `python serialize.py <standard checkpoint> standard.pt`, then train with
-  `--resume-from-model standard.pt`. Ship the result only if it beats the standard network in
-  that variant.
-
-## Your laptop (i5-8300H, 8 GB RAM, Intel UHD 630, 238 GB SSD with about 27 GB free)
-
-| Job | Verdict |
-|---|---|
-| Building, rule checks, self-play | Fine. |
-| Generating training data | Fine, but slow: about 10M positions overnight per variant. Leave one core free, keep it plugged in, and watch disk space (each 10M is about 720 MB). |
-| Training networks | No: needs an NVIDIA GPU with CUDA. Use Colab or a rented GPU. |
-| Testing networks (engine matches) | Fine, overnight for a few thousand short games. |
-| Disk | 27 GB free is enough for a few data sets at a time. Delete old generations once a network is trained from them. |
+Training needs an NVIDIA GPU with CUDA (the trainer's core layer is CUDA code), hence Colab.
+Data generation is CPU work: about 430 positions a second on 4 cores at depth 6, so the 8
+parallel Actions runners do 10 million in under an hour. A position is 72 bytes, so 10 million
+is about 720 MB.
