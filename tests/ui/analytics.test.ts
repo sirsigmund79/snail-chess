@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { gameEvents, type GameContext } from '../../src/analytics';
 import { applyMove, createGame, type ImmortalChessState, type Square } from '../../src/engine';
 
-const ctx: GameContext = { mode: 'bot', humanColor: 'w', level: 'medium', theme: 'paper' };
+const ctx: GameContext = { mode: 'bot', humanColor: 'w', level: 'medium', theme: 'walnut' };
 const play = (s: ImmortalChessState, uci: string) => applyMove(s, { from: uci.slice(0, 2) as Square, to: uci.slice(2, 4) as Square });
 
 describe('analytics game events', () => {
@@ -12,7 +12,7 @@ describe('analytics game events', () => {
     expect(gameEvents(g0, g0, ctx, sent)).toEqual([]);
     const g1 = play(g0, 'e2e4');
     expect(gameEvents(g0, g1, ctx, sent)).toEqual([
-      ['game_started', { opponent: 'bot', difficulty: 'medium', player_color: 'white', theme: 'paper' }],
+      ['game_started', { opponent: 'bot', difficulty: 'medium', player_color: 'white', theme: 'walnut' }],
     ]);
     // Undo to the start and replay: still one game.
     expect(gameEvents(g1, g0, ctx, sent)).toEqual([]);

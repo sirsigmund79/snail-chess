@@ -1,6 +1,6 @@
 /**
  * Browser smoke test against `npm run preview` (default http://localhost:4173), at phone size:
- *  1. theme: Paper grey board, console-only ?hyper hint, blue legal squares on selection;
+ *  1. theme: Walnut board, console-only ?hyper hint, blue legal squares on selection;
  *  2. hot-seat: snails step after the 6th ply, one at a time, with banners and coral move dots;
  *  3. a snail crush; both kings at once (a draw); a snail taking a king (SLIMED, then the result
  *     card); a normal checkmate;
@@ -63,14 +63,14 @@ const checkEndCard = async () => {
 // 1. Theme
 await page.goto(url);
 await page.waitForSelector('[data-square="a1"]');
-if ((await squareBg('a1')) !== 'rgb(227, 227, 227)') throw new Error(`expected paper-grey board, got ${await squareBg('a1')}`);
+if ((await squareBg('a1')) !== 'rgb(181, 136, 99)') throw new Error(`expected walnut board, got ${await squareBg('a1')}`);
 if (!logs.some((l) => l.includes('?hyper'))) throw new Error('missing console hint');
 if (await page.locator('text=hyper').count()) throw new Error('the hyper hint must not appear on the page');
 await click('e2');
-if ((await squareBg('e4', true)) !== 'rgb(46, 155, 255)') throw new Error('expected e4 highlighted as legal');
+if ((await squareBg('e4', true)) !== 'rgb(139, 187, 230)') throw new Error('expected e4 highlighted as legal');
 await click('e2');
 await shot('start');
-console.log('theme ok: paper grey, console-only hint, legal squares in blue');
+console.log('theme ok: walnut, console-only hint, legal squares in blue');
 
 // 2. Hot-seat snail playback
 await newGame('Friend (same phone)');

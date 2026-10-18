@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { THEMES, themeFromSearch } from '../../src/ui/theme';
 
 describe('themes', () => {
-  it('defaults to paper grey', () => {
-    expect(themeFromSearch('')).toBe('paper');
-    expect(themeFromSearch('?foo=bar')).toBe('paper');
-    expect(THEMES.paper.dark).toBe('#e3e3e3');
+  it('defaults to Walnut', () => {
+    expect(themeFromSearch('')).toBe('walnut');
+    expect(themeFromSearch('?foo=bar')).toBe('walnut');
+    expect(THEMES.walnut.light).toBe('#f0d9b5');
+    expect(THEMES.walnut.dark).toBe('#b58863');
   });
 
   it('unlocks Bubblegum Bass with a hyper parameter', () => {
@@ -13,7 +14,7 @@ describe('themes', () => {
     expect(themeFromSearch('?hyper=1')).toBe('bubblegum');
     expect(themeFromSearch('?theme=hyper')).toBe('bubblegum');
     expect(themeFromSearch('?HYPER')).toBe('bubblegum');
-    expect(themeFromSearch('?hyperactive=1')).toBe('paper');
+    expect(themeFromSearch('?hyperactive=1')).toBe('walnut');
   });
 
   it('keeps legal moves and snails distinct in every theme', () => {

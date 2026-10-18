@@ -134,7 +134,8 @@ left empty, which is safe because the root is already restricted to snail-legal 
 
 ## Themes
 
-The board defaults to **Paper grey**: white and #e3e3e3 squares. Selecting or dragging a piece
+The default is **Walnut**: a dark page (#1b1714) with cream text, so it's comfortable to watch for
+long stretches (e.g. on a stream), and a #f0d9b5 / #b58863 board. Selecting or dragging a piece
 lights its legal squares in blue, and the squares the snails land on next are coral (`src/ui/theme.ts`).
 
 There's a hidden **Bubblegum Bass** theme, unlocked by a `hyper` URL parameter (`?hyper`,

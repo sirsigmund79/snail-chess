@@ -108,8 +108,8 @@ export function SnailBoard({ frame, rules, lastMove, orientation, interactive, i
   const squareStyles = useMemo(() => {
     const out: Partial<Record<Square, Record<string, string | number>>> = {};
     if (lastMove) {
-      out[lastMove.from] = { backgroundColor: T.lastMove };
-      out[lastMove.to] = { backgroundColor: T.lastMove };
+      out[lastMove.from] = { backgroundColor: isDark(lastMove.from) ? T.lastMoveDark : T.lastMove };
+      out[lastMove.to] = { backgroundColor: isDark(lastMove.to) ? T.lastMoveDark : T.lastMove };
     }
     for (const sq of snailNextKey ? (snailNextKey.split(',') as Square[]) : []) {
       out[sq] = { backgroundColor: isDark(sq) ? T.snailDark : T.snail };
