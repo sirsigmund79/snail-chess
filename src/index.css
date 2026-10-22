@@ -282,8 +282,11 @@ html[data-theme='bubblegum'] .brand span { background: var(--brand); -webkit-bac
   .slimed-band, .slimed-word, .slimed-img, .slimed-caption { animation: none; opacity: 1; transform: none; }
   .slimed-overlay { animation: none; background: rgba(28, 25, 23, 0.35); }
 }
-.room .small { font-size: 13px; margin: 0; max-width: 320px; }
+.room .small { font-size: 13px; margin: 0; max-width: 320px; justify-self: center; }
 .more-toggle { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: var(--soft); }
 .more-toggle svg { width: 18px; height: 18px; transition: transform 0.15s; }
 .more-toggle[aria-expanded='true'] svg { transform: rotate(180deg); }
-.more-settings { width: 100%; display: grid; gap: 12px; justify-items: center; }
+.more-settings { width: 100%; display: grid; gap: 12px; }
+/* In the menu sheet the fields space themselves, like the basic options above. */
+.sheet .more-settings { display: block; }
+.sheet .more-settings .small { margin: 4px 0 0; font-size: 13px; }
