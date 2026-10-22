@@ -1,7 +1,7 @@
 import { inCheck } from '../engine/boardValidator';
 import { findKing, opposite, parseFen } from '../engine/fen';
 import { applyMove, getLegalMoves, turn } from '../engine/game';
-import { chebyshev, pliesUntilTick } from '../engine/snailEngine';
+import { pliesUntilTick, snailDistance } from '../engine/snailEngine';
 import type { Color, ImmortalChessState, MoveInput } from '../engine/types';
 import { toInput } from './snailEval';
 
@@ -23,8 +23,8 @@ export function snailGuard(state: ImmortalChessState): GuardResult {
   const them = opposite(us);
   const king = findKing(parseFen(state.fen).board, us);
   if (!king) return null;
-  const snailNextToKing = chebyshev(king, state.snails[them].square) <= 1;
-  const snailsMoveBeforeOurNextTurn = pliesUntilTick(state.plyCount) <= 2;
+  const snailNextToKing = snailDistance(king, state.snails[them].square, state.rules.movement) <= 1;
+  const snailsMoveBeforeOurNextTurn = pliesUntilTick(state.plyCount, state.rules) <= 2;
   if (!snailNextToKing || !snailsMoveBeforeOurNextTurn) return null;
 
   const legal = getLegalMoves(state);

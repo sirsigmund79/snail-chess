@@ -73,7 +73,7 @@ export interface MoveRecord extends MoveInput {
   tick?: TickEvent;
 }
 
-/** Variant rules, picked by the host of an online game. Local games always use DEFAULT_RULES. */
+/** Variant rules, picked in the new game menu (or by the host of an online game). */
 export interface GameRules {
   /** Full moves (one by each side) between snail steps. */
   movesPerTick: 2 | 3 | 4;
@@ -87,6 +87,7 @@ export interface GameRules {
 }
 
 export const DEFAULT_RULES: GameRules = { movesPerTick: 3, movement: 'diagonal', strength: 'unstoppable' };
+export const sameRules = (a: GameRules, b: GameRules) => a.movesPerTick === b.movesPerTick && a.movement === b.movement && a.strength === b.strength;
 
 export interface ImmortalChessState {
   rules: GameRules;

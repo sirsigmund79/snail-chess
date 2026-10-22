@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { chooseMove, type Level } from '../../src/bot/hybrid';
 import { scoreMoves } from '../../src/bot/snailEval';
 import { snailGuard } from '../../src/bot/snailGuard';
-import { applyMove, chebyshev, createGame } from '../../src/engine';
+import { applyMove, chebyshev, createGame, DEFAULT_RULES } from '../../src/engine';
 
 const lookahead = (s: Parameters<typeof scoreMoves>[0], d: number, only?: Parameters<typeof scoreMoves>[3]) =>
   scoreMoves(s, d, undefined, only).scored;
@@ -67,5 +67,33 @@ describe('snail guard with the both-kings draw', () => {
     const r = snailGuard(g);
     if (r?.kind !== 'win') throw new Error(`expected a winning escape, got ${JSON.stringify(r)}`);
     expect(applyMove(g, r.move)).toMatchObject({ gameStatus: 'snail_win_black', winner: 'b' });
+  });
+});
+
+describe('snailGuard under variant rules', () => {
+  const fen = 'r3k3/ppp5/8/8/8/8/PPP5/R3K3 w - - 0 1';
+  const snails = { w: 'h7', b: 'd2' } as const;
+
+  it('knows when the snails step', () => {
+    // Two plies in: the snails step after Black's reply only if they move every 2 moves.
+    expect(snailGuard(createGame({ fen, snails, plyCount: 2 }))).toBeNull();
+    expect(snailGuard(createGame({ fen, snails, plyCount: 2, rules: { ...DEFAULT_RULES, movesPerTick: 2 } }))?.kind).toBe('restrict');
+    // Four plies in, snails that move every 4 moves are still four plies away.
+    expect(snailGuard(createGame({ fen, snails, plyCount: 4, rules: { ...DEFAULT_RULES, movesPerTick: 4 } }))).toBeNull();
+  });
+
+  it('lets the king stay diagonally next to a snail that can’t move diagonally', () => {
+    const straight = { ...DEFAULT_RULES, movement: 'straight' } as const;
+    expect(snailGuard(createGame({ fen, snails, plyCount: 4, rules: straight }))).toBeNull();
+    // Straight next to it is still deadly.
+    const guard = snailGuard(createGame({ fen, snails: { w: 'h7', b: 'e2' }, plyCount: 4, rules: straight }));
+    expect(guard?.kind).toBe('restrict');
+  });
+
+  it('the bot steps out of reach when the snails move every 2 moves', async () => {
+    const g = createGame({ fen, snails, plyCount: 2, rules: { ...DEFAULT_RULES, movesPerTick: 2 } });
+    const { move } = await chooseMove(g, 'medium', { lookahead });
+    expect(move.from).toBe('e1');
+    expect(chebyshev(move.to, 'd2')).toBeGreaterThanOrEqual(2);
   });
 });

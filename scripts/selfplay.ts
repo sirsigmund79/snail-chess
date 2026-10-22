@@ -3,6 +3,7 @@
  *
  *   npx tsx scripts/selfplay.ts --games 20 [--white medium] [--black hard] [--no-stockfish]
  *                               [--max-plies 200] [--alpha 120] [--seed 1]
+ *                               [--every 2|3|4] [--straight] [--weak]
  *
  * Colours alternate each game. Reports how games end, average length and "unforced snail
  * deaths": a king crushed when its owner, on their last move, had a move that kept the king
@@ -23,8 +24,10 @@ import {
   parseFen,
   pliesUntilTick,
   turn,
+  type GameRules,
   type ImmortalChessState,
 } from '../src/engine';
+import { cleanRules } from '../src/network/protocol';
 import { createNodeStockfish } from './nodeStockfish';
 
 const { values } = parseArgs({
@@ -37,12 +40,21 @@ const { values } = parseArgs({
     alpha: { type: 'string' },
     quiet: { type: 'boolean', default: false },
     seed: { type: 'string', default: '1' },
+    // Variant rules (defaults otherwise): snails step every N moves, no diagonals, weak snails.
+    every: { type: 'string', default: '3' },
+    straight: { type: 'boolean', default: false },
+    weak: { type: 'boolean', default: false },
   },
 });
 
 const games = Number(values.games);
 const maxPlies = Number(values['max-plies']);
 const weights: SnailWeights = { ...DEFAULT_WEIGHTS, ...(values.alpha ? { alpha: Number(values.alpha) } : {}) };
+const rules: GameRules = cleanRules({
+  movesPerTick: Number(values.every),
+  movement: values.straight ? 'straight' : 'diagonal',
+  strength: values.weak ? 'weak' : 'unstoppable',
+});
 const levels = [values.white as Level, values.black as Level];
 const engines: (CandidateEngine | null)[] = values['no-stockfish']
   ? [null, null]
@@ -57,8 +69,8 @@ function wasAvoidable(before: ImmortalChessState): boolean {
     const king = findKing(parseFen(after.fen).board, mover);
     if (!king) return false;
     const enemy = opposite(mover);
-    const step = nextSnailStep(after.snails[enemy].square, king, after.snails[mover].square);
-    return step !== king || pliesUntilTick(after.plyCount) > 1;
+    const step = nextSnailStep(after.snails[enemy].square, king, after.snails[mover].square, rules, parseFen(after.fen).board);
+    return step !== king || pliesUntilTick(after.plyCount, rules) > 1;
   });
 }
 
@@ -73,7 +85,7 @@ async function playGame(i: number): Promise<Result> {
   const rng = seededRng(Number(values.seed) * 1000 + i);
   const flip = i % 2 === 1;
   const seat = (c: 'w' | 'b') => ((c === 'w') !== flip ? 0 : 1);
-  let state = createGame();
+  let state = createGame({ rules });
   let prevByColor: Record<'w' | 'b', ImmortalChessState | null> = { w: null, b: null };
   while (state.gameStatus === 'in_progress' && state.plyCount < maxPlies) {
     const side = turn(state);
@@ -119,6 +131,7 @@ const snailWins = count((r) => r.status.startsWith('snail_win'));
 const unforced = count((r) => r.unforcedSnailDeath);
 console.log('\n=== Self-play summary ===');
 console.log(`games:              ${results.length} (${levels[0]} vs ${levels[1]}, ${values['no-stockfish'] ? 'snail search only' : 'stockfish+snail'})`);
+console.log(`rules:              every ${rules.movesPerTick} moves · ${rules.movement} · ${rules.strength}`);
 console.log(`checkmate:          ${pct(count((r) => r.status === 'checkmate'))}`);
 console.log(`snail capture:      ${pct(snailWins)}`);
 console.log(`draw:               ${pct(count((r) => r.status === 'draw' || r.status === 'adjudicated_draw'))}`);

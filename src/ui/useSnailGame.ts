@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BotClient } from '../bot/botClient';
 import type { Level } from '../bot/hybrid';
 import { applyMove, createGame, IllegalMoveError, resign, turn } from '../engine/game';
-import type { Color, ImmortalChessState, MoveInput } from '../engine/types';
+import type { Color, GameRules, ImmortalChessState, MoveInput } from '../engine/types';
 import { gameEvents, track } from '../analytics';
 import { ACTIVE_THEME } from './theme';
 import { usePlayback } from './usePlayback';
@@ -17,10 +17,12 @@ export interface GameSettings {
   /** Colour the human plays in bot mode. */
   humanColor: Color;
   level: Level;
+  /** Variant rules for new games. */
+  rules: GameRules;
 }
 
 export function useSnailGame(settings: GameSettings) {
-  const [stack, setStack] = useState<ImmortalChessState[]>(() => [createGame()]);
+  const [stack, setStack] = useState<ImmortalChessState[]>(() => [createGame({ rules: settings.rules })]);
   const [thinking, setThinking] = useState(false);
   const [botError, setBotError] = useState<string | null>(null);
   const botRef = useRef<BotClient | null>(null);
@@ -94,9 +96,10 @@ export function useSnailGame(settings: GameSettings) {
 
   useEffect(() => () => botRef.current?.dispose(), []);
 
-  const reset = useCallback(() => {
+  /** Start over, under `rules` (the new settings may not have reached this hook yet). */
+  const reset = useCallback((rules: GameRules) => {
     sentRef.current = { started: false, ended: false };
-    setStack([createGame()]);
+    setStack([createGame({ rules })]);
     setBotError(null);
   }, []);
 

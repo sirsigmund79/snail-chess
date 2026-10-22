@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { track } from '../analytics';
 import { turn } from '../engine/game';
 import { tickInterval } from '../engine/snailEngine';
-import type { Color, ImmortalChessState } from '../engine/types';
+import { DEFAULT_RULES, sameRules, type Color, type ImmortalChessState } from '../engine/types';
+import { cleanRules } from '../network/protocol';
 import { generateRoomCode } from '../network/roomCode';
 import { MovesSheet, ResignSheet, ResultCard, RulesSheet, rulesSummary, SettingsSheet, type ResultInfo, type Settings } from './Sheets';
 import { SlimedOverlay } from './SlimedOverlay';
@@ -147,9 +148,10 @@ function resultInfo(state: ImmortalChessState, mode: ViewMode, human: Color, lev
 export function GameScreen({ online }: { online?: OnlineGame }) {
   const location = useLocation();
   // Leaving an online room through the menu lands here with the chosen settings.
-  const [settings, setSettings] = useState<Settings>(
-    () => (location.state as { settings?: Settings } | null)?.settings ?? { mode: 'bot', humanColor: 'w', level: 'medium' },
-  );
+  const [settings, setSettings] = useState<Settings>(() => {
+    const passed = (location.state as { settings?: Settings } | null)?.settings;
+    return passed ? { ...passed, rules: cleanRules(passed.rules) } : { mode: 'bot', humanColor: 'w', level: 'medium', rules: DEFAULT_RULES };
+  });
   const [draft, setDraft] = useState<Settings>(settings);
   const [sheet, setSheet] = useState<null | 'menu' | 'rules' | 'moves' | 'resign'>(null);
   // The end card was dismissed (tapped outside) to look at the final position.
@@ -196,7 +198,7 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
       return;
     }
     setSettings(next);
-    game.reset();
+    local.reset(next.rules);
     setReviewing(false);
     setSheet(null);
   };
@@ -250,10 +252,16 @@ export function GameScreen({ online }: { online?: OnlineGame }) {
           <Svg>{Icon.rules}</Svg>
         </button>
       </header>
-      {online && (
+      {online ? (
         <p className="room-tag" data-testid="room-tag">
           Room: {online.roomId} · {rulesSummary(state.rules)}
         </p>
+      ) : (
+        !sameRules(state.rules, DEFAULT_RULES) && (
+          <p className="room-tag" data-testid="rules-tag">
+            {rulesSummary(state.rules)}
+          </p>
+        )
       )}
       <MoveStrip state={state} hideLastTick={playback.busy} />
       {game.botError && <p className="error">Bot error: {game.botError}</p>}

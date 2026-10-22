@@ -1,6 +1,6 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Level } from '../bot/hybrid';
-import { DEFAULT_RULES, type Color, type GameRules, type ImmortalChessState } from '../engine/types';
+import { DEFAULT_RULES, sameRules, type Color, type GameRules, type ImmortalChessState } from '../engine/types';
 import { SnailIcon } from './SnailIcon';
 import type { Mode } from './useSnailGame';
 
@@ -22,9 +22,49 @@ export function Sheet({ label, onClose, children }: { label: string; onClose: ()
   );
 }
 
+/** A labelled row of radio buttons, as in the new game menu. */
+export function Seg<T extends string | number>({ name, value, options, onPick }: { name: string; value: T; options: [T, string][]; onPick: (v: T) => void }) {
+  return (
+    <div className="field">
+      <span className="field-label">{name}</span>
+      <div className="seg" role="radiogroup" aria-label={name}>
+        {options.map(([v, label]) => (
+          <button key={v} role="radio" aria-checked={value === v} className={value === v ? 'on' : ''} onClick={() => onPick(v)}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The variant rules, folded away behind "More game settings" (open from the start if any differ from the defaults). */
+export function MoreRules({ rules, onChange }: { rules: GameRules; onChange: (rules: GameRules) => void }) {
+  const [more, setMore] = useState(() => !sameRules(rules, DEFAULT_RULES));
+  const set = (change: Partial<GameRules>) => onChange({ ...rules, ...change });
+  return (
+    <>
+      <button className="more-toggle" aria-expanded={more} aria-controls="more-settings" onClick={() => setMore(!more)}>
+        More game settings
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {more && (
+        <div id="more-settings" className="more-settings">
+          <Seg name="Snails move every" value={rules.movesPerTick} options={[[2, '2 moves'], [3, '3 moves'], [4, '4 moves']]} onPick={(movesPerTick) => set({ movesPerTick })} />
+          <Seg name="Snail movement" value={rules.movement} options={[['diagonal', 'Standard'], ['straight', 'No diagonals']]} onPick={(movement) => set({ movement })} />
+          <Seg name="Snail strength" value={rules.strength} options={[['unstoppable', 'Unstoppable'], ['weak', 'Weak']]} onPick={(strength) => set({ strength })} />
+          <p className="muted small">{rules.strength === 'weak' ? 'Weak snails only crush kings and go around everything else.' : 'Unstoppable snails crush whatever they land on.'}</p>
+        </div>
+      )}
+    </>
+  );
+}
+
 const COUNT = { 2: 'two', 3: 'three', 4: 'four' } as const;
 
-/** How to play, worded for the rules in force (online games can change three of them). */
+/** How to play, worded for the rules in force (any game can change three of them). */
 export function rulesText(rules: GameRules = DEFAULT_RULES): [string, string][] {
   const straight = rules.movement === 'straight';
   return [
@@ -71,6 +111,7 @@ export interface Settings {
   mode: Mode;
   humanColor: Color;
   level: Level;
+  rules: GameRules;
 }
 
 /** The menu: game settings and starting a new game. */
@@ -87,28 +128,17 @@ export function SettingsSheet({
   onClose: () => void;
   onRoom: () => void;
 }) {
-  const seg = <T extends string>(name: string, value: T, options: [T, string][], set: (v: T) => void) => (
-    <div className="field">
-      <span className="field-label">{name}</span>
-      <div className="seg" role="radiogroup" aria-label={name}>
-        {options.map(([v, label]) => (
-          <button key={v} role="radio" aria-checked={value === v} className={value === v ? 'on' : ''} onClick={() => set(v)}>
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
   return (
     <Sheet label="Game settings" onClose={onClose}>
       <h2 className="sheet-title">New game</h2>
-      {seg('Opponent', settings.mode, [['bot', 'Snailfish bot'], ['hotseat', 'Friend (same phone)']], (mode) => onChange({ ...settings, mode }))}
+      <Seg name="Opponent" value={settings.mode} options={[['bot', 'Snailfish bot'], ['hotseat', 'Friend (same phone)']]} onPick={(mode) => onChange({ ...settings, mode })} />
       {settings.mode === 'bot' && (
         <>
-          {seg('You play', settings.humanColor, [['w', 'White'], ['b', 'Black']], (humanColor) => onChange({ ...settings, humanColor }))}
-          {seg('Difficulty', settings.level, [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']], (level) => onChange({ ...settings, level }))}
+          <Seg name="You play" value={settings.humanColor} options={[['w', 'White'], ['b', 'Black']]} onPick={(humanColor) => onChange({ ...settings, humanColor })} />
+          <Seg name="Difficulty" value={settings.level} options={[['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']]} onPick={(level) => onChange({ ...settings, level })} />
         </>
       )}
+      <MoreRules rules={settings.rules} onChange={(rules) => onChange({ ...settings, rules })} />
       <button className="btn primary wide" onClick={onStart}>
         Start new game
       </button>

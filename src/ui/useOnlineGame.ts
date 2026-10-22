@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { applyMove, createGame, IllegalMoveError, resign, turn } from '../engine/game';
-import type { Color, GameRules, ImmortalChessState, MoveInput } from '../engine/types';
+import { sameRules, type Color, type GameRules, type ImmortalChessState, type MoveInput } from '../engine/types';
 import { gameEvents, track } from '../analytics';
 import { cleanRules, LIMITS, roomSocketPath, type ClientMessage, type RoomState, type ServerMessage } from '../network/protocol';
 import { ACTIVE_THEME } from './theme';
@@ -24,7 +24,6 @@ let memoId: string | null = null;
 const myId = () => (memoId ??= playerId());
 
 const sameMove = (a: MoveInput, b: MoveInput) => a.from === b.from && a.to === b.to && (a.promotion ?? '') === (b.promotion ?? '');
-const sameRules = (a: GameRules, b: GameRules) => a.movesPerTick === b.movesPerTick && a.movement === b.movement && a.strength === b.strength;
 
 /** Rebuild from the server's state, reusing `prev` when it's a prefix (so only new moves animate). */
 function sync(prev: ImmortalChessState, moves: MoveInput[], rules: GameRules, resigned: Color | null): ImmortalChessState {

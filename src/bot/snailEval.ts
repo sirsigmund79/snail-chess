@@ -2,8 +2,8 @@ import type { Move } from 'chess.js';
 import { applyMove, getLegalMoves, turn } from '../engine/game';
 import { legalMoves, inCheck } from '../engine/boardValidator';
 import { coordsToSq, findKing, opposite, parseFen, sqIndex, sqToCoords, type Board } from '../engine/fen';
-import { chebyshev, nextSnailStep, pliesUntilTick } from '../engine/snailEngine';
-import type { Color, ImmortalChessState, MoveInput, Square } from '../engine/types';
+import { nextSnailStep, pliesUntilTick, snailDistance } from '../engine/snailEngine';
+import type { Color, GameRules, ImmortalChessState, MoveInput, Square } from '../engine/types';
 
 export const MATE = 100_000;
 
@@ -43,9 +43,9 @@ const BOXED_URGENCY: Record<number, number> = { 1: 1, 2: 0.7, 3: 0.35 };
 
 /**
  * King flight squares that get out of the snail's reach: on the board, not a snail, not our own
- * piece, and not adjacent to where the snail steps next. Attacks are ignored (cheap heuristic).
+ * piece, and not one snail step from where the snail steps next. Attacks are ignored (cheap heuristic).
  */
-function flightSquares(board: Board, king: Square, color: Color, snailNext: Square, snails: Square[]): number {
+function flightSquares(board: Board, king: Square, color: Color, snailNext: Square, snails: Square[], rules: GameRules): number {
   const [kf, kr] = sqToCoords(king);
   let n = 0;
   for (let df = -1; df <= 1; df++) {
@@ -56,17 +56,17 @@ function flightSquares(board: Board, king: Square, color: Color, snailNext: Squa
       if (f < 0 || f > 7 || r < 0 || r > 7) continue;
       const sq = coordsToSq(f, r);
       if (snails.includes(sq) || board[r * 8 + f]?.color === color) continue;
-      if (chebyshev(sq, snailNext) >= 2) n++;
+      if (snailDistance(sq, snailNext, rules.movement) >= 2) n++;
     }
   }
   return n;
 }
 
-function boxedTerm(board: Board, king: Square, color: Color, enemySnail: Square, ownSnail: Square, w: SnailWeights): number {
-  const urgency = BOXED_URGENCY[chebyshev(king, enemySnail)];
+function boxedTerm(board: Board, king: Square, color: Color, enemySnail: Square, ownSnail: Square, rules: GameRules, w: SnailWeights): number {
+  const urgency = BOXED_URGENCY[snailDistance(king, enemySnail, rules.movement)];
   if (!urgency) return 0;
-  const next = nextSnailStep(enemySnail, king, ownSnail);
-  const flights = flightSquares(board, king, color, next, [enemySnail, ownSnail]);
+  const next = nextSnailStep(enemySnail, king, ownSnail, rules, board);
+  const flights = flightSquares(board, king, color, next, [enemySnail, ownSnail], rules);
   const cramp = flights === 0 ? 1 : flights === 1 ? 0.4 : 0;
   return w.boxedPenalty * urgency * cramp;
 }
@@ -99,21 +99,27 @@ const CASTLE_PATHS: Record<Color, { home: Square; right: string; empty: Square[]
  * corner behind its pawns, comes out short long before the crush is visible to the search, and
  * moves that open a way out (developing the bishop, castling, a pawn step) score better at once.
  */
-function stepsSurvived(board: Board, king: Square, color: Color, castling: string, enemySnail: Square, ownSnail: Square, movesBeforeTick: number): number {
+function stepsSurvived(board: Board, king: Square, color: Color, castling: string, enemySnail: Square, ownSnail: Square, movesBeforeTick: number, rules: GameRules): number {
   const horizon = ESCAPE_PENALTY.length;
-  // Standing still, the king lasts `distance` snail steps.
-  if (chebyshev(king, enemySnail) > horizon) return horizon;
+  // Standing still, the king lasts at least `distance` snail steps (more if weak snails detour).
+  if (snailDistance(king, enemySnail, rules.movement) > horizon) return horizon;
   const memo = new Map<number, number>();
   const free = (sq: Square) => sq !== enemySnail && sq !== ownSnail && !board[sqIndex(sq)];
+  // Weak snails route around pieces, so they need the board, minus the king that walks away.
+  let around = board;
+  if (rules.strength === 'weak') {
+    around = board.slice();
+    around[sqIndex(king)] = null;
+  }
   const go = (k: Square, s: Square, moves: number, done: number): number => {
     if (done === horizon) return done;
-    const key = ((sqIndex(k) * 64 + sqIndex(s)) * 4 + moves) * 8 + done;
+    const key = ((sqIndex(k) * 64 + sqIndex(s)) * 5 + moves) * 8 + done;
     const hit = memo.get(key);
     if (hit !== undefined) return hit;
     let best: number;
     if (moves === 0) {
-      const next = nextSnailStep(s, k, ownSnail);
-      best = next === k ? done : go(k, next, 3, done + 1);
+      const next = nextSnailStep(s, k, ownSnail, rules, around);
+      best = next === k ? done : go(k, next, rules.movesPerTick, done + 1);
     } else {
       best = go(k, s, moves - 1, done); // a move elsewhere
       const [kf, kr] = sqToCoords(k);
@@ -138,8 +144,8 @@ function stepsSurvived(board: Board, king: Square, color: Color, castling: strin
   return go(king, enemySnail, movesBeforeTick, 0);
 }
 
-function escapeTerm(board: Board, king: Square, color: Color, castling: string, enemySnail: Square, ownSnail: Square, movesBeforeTick: number): number {
-  const survived = stepsSurvived(board, king, color, castling, enemySnail, ownSnail, movesBeforeTick);
+function escapeTerm(board: Board, king: Square, color: Color, castling: string, enemySnail: Square, ownSnail: Square, movesBeforeTick: number, rules: GameRules): number {
+  const survived = stepsSurvived(board, king, color, castling, enemySnail, ownSnail, movesBeforeTick, rules);
   return survived >= ESCAPE_PENALTY.length ? 0 : ESCAPE_PENALTY[survived];
 }
 
@@ -153,9 +159,9 @@ export function kingInDanger(state: ImmortalChessState): boolean {
   const king = findKing(board, color);
   if (!king) return false;
   const snail = state.snails[opposite(color)].square;
-  if (chebyshev(king, snail) <= 2) return true;
-  const moves = countMovesBeforeTick(color, color, pliesUntilTick(state.plyCount));
-  return escapeTerm(board, king, color, castling, snail, state.snails[color].square, moves) > 0;
+  if (snailDistance(king, snail, state.rules.movement) <= 2) return true;
+  const moves = countMovesBeforeTick(color, color, pliesUntilTick(state.plyCount, state.rules));
+  return escapeTerm(board, king, color, castling, snail, state.snails[color].square, moves, state.rules) > 0;
 }
 
 /**
@@ -165,13 +171,14 @@ export function kingInDanger(state: ImmortalChessState): boolean {
  */
 export function snailsMatter(state: ImmortalChessState, plies: number): boolean {
   const { board } = parseFen(state.fen);
-  const tickSoon = pliesUntilTick(state.plyCount) <= plies;
+  const { rules } = state;
+  const tickSoon = pliesUntilTick(state.plyCount, rules) <= plies;
   for (const color of ['w', 'b'] as const) {
     const target = findKing(board, opposite(color));
     if (!target) return true;
     const snail = state.snails[color].square;
-    if (chebyshev(snail, target) <= 2) return true;
-    if (tickSoon && board[sqIndex(nextSnailStep(snail, target, state.snails[opposite(color)].square))]) return true;
+    if (snailDistance(snail, target, rules.movement) <= 2) return true;
+    if (tickSoon && board[sqIndex(nextSnailStep(snail, target, state.snails[opposite(color)].square, rules, board))]) return true;
   }
   return false;
 }
@@ -207,23 +214,24 @@ export function snailEval(
   if (!ownKing || !enemyKing) return 0;
   const enemySnail = state.snails[enemy].square;
   const ownSnail = state.snails[color].square;
-  const dOwn = Math.max(1, chebyshev(ownKing, enemySnail));
-  const dEnemy = Math.max(1, chebyshev(enemyKing, ownSnail));
-  const plies = pliesUntilTick(state.plyCount);
+  const { rules } = state;
+  const dOwn = Math.max(1, snailDistance(ownKing, enemySnail, rules.movement));
+  const dEnemy = Math.max(1, snailDistance(enemyKing, ownSnail, rules.movement));
+  const plies = pliesUntilTick(state.plyCount, rules);
   const toMove = turn(state);
 
   let score = -w.alpha / dOwn ** w.exponent + w.beta / dEnemy ** w.exponent;
-  score -= boxedTerm(board, ownKing, color, enemySnail, ownSnail, w);
-  score += boxedTerm(board, enemyKing, enemy, ownSnail, enemySnail, w) / 2;
-  score -= escapeTerm(board, ownKing, color, castling, enemySnail, ownSnail, countMovesBeforeTick(toMove, color, plies)) * w.escapeScale;
-  score += (escapeTerm(board, enemyKing, enemy, castling, ownSnail, enemySnail, countMovesBeforeTick(toMove, enemy, plies)) * w.escapeScale) / 2;
+  score -= boxedTerm(board, ownKing, color, enemySnail, ownSnail, rules, w);
+  score += boxedTerm(board, enemyKing, enemy, ownSnail, enemySnail, rules, w) / 2;
+  score -= escapeTerm(board, ownKing, color, castling, enemySnail, ownSnail, countMovesBeforeTick(toMove, color, plies), rules) * w.escapeScale;
+  score += (escapeTerm(board, enemyKing, enemy, castling, ownSnail, enemySnail, countMovesBeforeTick(toMove, enemy, plies), rules) * w.escapeScale) / 2;
 
   // Our king standing on the enemy snail's next two steps is a trap waiting to close.
-  const step1 = nextSnailStep(enemySnail, ownKing, ownSnail);
-  const step2 = nextSnailStep(step1, ownKing, ownSnail);
+  const step1 = nextSnailStep(enemySnail, ownKing, ownSnail, rules, board);
+  const step2 = nextSnailStep(step1, ownKing, ownSnail, rules, board);
   const ourMoves = countMovesBeforeTick(toMove, color, plies);
   const theirMoves = countMovesBeforeTick(toMove, enemy, plies);
-  const eStep1 = nextSnailStep(ownSnail, enemyKing, enemySnail);
+  const eStep1 = nextSnailStep(ownSnail, enemyKing, enemySnail, rules, board);
   // Lethal if the tick fires before that king can step away. Both at once is a draw, not a win.
   const weDie = step1 === ownKing && ourMoves === 0;
   const theyDie = eStep1 === enemyKing && theirMoves === 0;
